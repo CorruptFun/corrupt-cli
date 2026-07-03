@@ -1,0 +1,22 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/reminders",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/trigger-billing-reminders",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/waiver-reminders",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/schedule-reminders",
+      "schedule": "0 17 * * *"
+    }
+  ]
+}

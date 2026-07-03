@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+from rich.console import Console
+
+# Resolve the factory root regardless of symlinks
+CLI_DIR = os.path.dirname(os.path.realpath(__file__))
+FACTORY_ROOT = os.environ.get("CORRUPT_FACTORY_ROOT", os.path.dirname(CLI_DIR))
+
+from rich.panel import Panel
+from rich.prompt import Prompt, IntPrompt
+from rich.text import Text
+from rich import print as rprint
+
+console = Console()
+
+def clear_screen():
+    os.system('clear')
+
+def main():
+    clear_screen()
+    
+    title = Text("💠 CORRUPT SOLUTIONS 💠", style="bold cyan", justify="center")
+    subtitle = Text("MASTER INFRASTRUCTURE ENGINE v3.0", style="dim", justify="center")
+    
+    console.print(Panel.fit(
+        Text.assemble(title, "\n", subtitle),
+        border_style="cyan",
+        padding=(1, 5)
+    ))
+    
+    console.print("\n[bold]Select deployment target:[/bold]\n")
+    console.print("  [1] [bold cyan]Local Service & Inventory[/bold cyan] (Static Engine / NextJS / Edge)")
+    console.print("      [dim]Used for Dealerships, Mechanics, HVAC. SEO-optimized fast static generation.[/dim]\n")
+    
+    console.print("  [2] [bold magenta]SaaS Membership & Booking[/bold magenta] (Dynamic Next.js + Supabase + Deno)")
+    console.print("      [dim]Used for Gyms, Salons, Clubs. Includes liability waivers & RLS policies.[/dim]\n")
+    
+    try:
+        choice = IntPrompt.ask("\n[bold yellow]>[/bold yellow] Enter selection", choices=["1", "2"])
+        
+        if choice == 1:
+            script = os.path.join(FACTORY_ROOT, "corrupt-dealership-engine", "corrupt-cli")
+            console.print("\n[bold cyan]Routing to Inventory Engine...[/bold cyan]")
+            subprocess.run([script])
+        elif choice == 2:
+            script = os.path.join(FACTORY_ROOT, "CorruptCLI-Engine", "corrupt.py")
+            console.print("\n[bold magenta]Routing to SaaS Booking Engine...[/bold magenta]")
+            subprocess.run(["python3", script])
+            
+    except KeyboardInterrupt:
+        console.print("\n[red]Aborted.[/red]")
+        sys.exit(0)
+
+if __name__ == "__main__":
+    main()

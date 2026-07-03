@@ -1,0 +1,32 @@
+{
+  "dealership": {
+    "name": "YOUR_BUSINESS_NAME",
+    "about_us": "Welcome to YOUR_BUSINESS_NAME, your trusted source for reliable vehicles. We are committed to honest service and competitive pricing to get you behind the wheel today.",
+    "suffix": "",
+    "tagline": "YOUR TAGLINE HERE.",
+    "sub_tagline": "A brief description of your services, financing options, or business highlights.",
+    "location": "Your City, ST",
+    "address": "123 Main St, Your City, ST 00000",
+    "phone": "5555555555",
+    "phone_formatted": "(555) 555-5555",
+    "email": "info@yourdomain.com",
+    "facebook_url": "https://facebook.com/",
+    "se_habla_espanol": false,
+    "map_query": "123%20Main%20St,%20Your%20City,%20ST"
+  },
+  "branding": {
+    "primary_color": "#dc2626",
+    "primary_color_hover": "#b91c1c",
+    "theme": "dark"
+  },
+  "auth": {
+    "whitelisted_emails": [
+      "admin@yourdomain.com"
+    ]
+  },
+  "default_badges": [
+    "Featured",
+    "New Arrival",
+    "Best Value"
+  ]
+}

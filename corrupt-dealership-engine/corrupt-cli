@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+import os
+import sys
+import json
+import shutil
+import argparse
+
+ENGINE_DIR = "/Users/gravity/Documents/corrupt-dealership-engine"
+TEMPLATE_HTML = os.path.join(ENGINE_DIR, "template.html")
+RENDER_SCRIPT = os.path.join(ENGINE_DIR, "render.py")
+
+def build_config(name, phone, color, address, city, state, zip_code, email, tagline="", facebook="", instagram="", yelp="", whatsapp="", espanol=False, logo_url="", about_us=""):
+    if not about_us:
+        about_us = f"Welcome to {name}, your trusted source for reliable vehicles in {city}. We are committed to honest service and competitive pricing to get you behind the wheel today."
+    
+    return {
+        "dealership": {
+            "name": name,
+            "about_us": about_us,
+            "suffix": "",
+            "tagline": tagline if tagline else "QUALITY SERVICE. HONEST PRICING.",
+            "sub_tagline": "The best local service provider in town.",
+            "location": f"{city}, {state}",
+            "address": f"{address} {city}, {state} {zip_code}",
+            "phone": phone,
+            "phone_formatted": f"({phone[:3]}) {phone[3:6]}-{phone[6:]}" if len(phone) == 10 else phone,
+            "email": email,
+            "facebook_url": facebook,
+            "instagram_url": instagram,
+            "yelp_url": yelp,
+            "whatsapp_number": whatsapp,
+            "se_habla_espanol": espanol,
+            "map_query": f"{address} {city} {state}"
+        },
+        "branding": {
+            "primary_color": color,
+            "primary_color_hover": color,
+            "theme": "dark",
+            "logo_url": logo_url
+        },
+        "auth": {
+            "whitelisted_emails": ["admin@local.com"]
+        },
+        "default_badges": ["New", "Featured"]
+    }
+
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.panel import Panel
+from rich.text import Text
+
+console = Console()
+
+def main():
+    console.clear()
+    title = Text("💠 CORRUPT SOLUTIONS | INVENTORY ENGINE INITIALIZER v1 💠", style="bold cyan", justify="center")
+    console.print(Panel(title, border_style="cyan", padding=(1, 2)))
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('project_name', nargs='?', help='Name of the target output directory')
+    args = parser.parse_args()
+    
+    console.print("\n[bold cyan][1/2][/bold cyan] [bold]PROJECT CONFIGURATION[/bold]")
+    if not args.project_name:
+        project_dir_name = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Project Directory Name", default="mikes_auto", console=console).strip()
+    else:
+        project_dir_name = args.project_name
+
+    target_dir = os.path.join(os.getcwd(), project_dir_name)
+    
+    if os.path.exists(target_dir):
+        console.print(f"[bold red]Error: Directory {target_dir} already exists.[/bold red]")
+        sys.exit(1)
+        
+    biz_name = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Business Name", default="Mike's Auto", console=console).strip()
+    biz_phone = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Phone Number", default="5551234567", console=console).strip()
+    biz_email = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Business Email", default="contact@mikesauto.com", console=console).strip()
+    biz_address = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Street Address", default="1010 S Main St", console=console).strip()
+    biz_city = Prompt.ask("[bold cyan]💠[/bold cyan] Enter City", default="Liberal", console=console).strip()
+    biz_state = Prompt.ask("[bold cyan]💠[/bold cyan] Enter State (e.g. KS)", default="KS", console=console).strip()
+    biz_zip = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Zip Code", default="67901", console=console).strip()
+    brand_color = Prompt.ask("[bold cyan]💠[/bold cyan] Enter Primary Hex Color", default="#dc2626", console=console).strip()
+    
+    if not brand_color:
+        brand_color = "#dc2626"
+        
+    console.print("\n[bold cyan][2/2][/bold cyan] [bold]OPTIONAL SOCIALS & SETTINGS (Press Enter to skip)[/bold]")
+    biz_tagline = Prompt.ask("[bold cyan]💠[/bold cyan] Tagline/Slogan", default="", console=console).strip()
+    biz_fb = Prompt.ask("[bold cyan]💠[/bold cyan] Facebook URL", default="", console=console).strip()
+    biz_ig = Prompt.ask("[bold cyan]💠[/bold cyan] Instagram URL", default="", console=console).strip()
+    biz_yelp = Prompt.ask("[bold cyan]💠[/bold cyan] Yelp URL", default="", console=console).strip()
+    biz_wa = Prompt.ask("[bold cyan]💠[/bold cyan] WhatsApp Number", default="", console=console).strip()
+    biz_espanol = Prompt.ask("[bold cyan]💠[/bold cyan] Se Habla Español? (y/N)", default="n", console=console).strip().lower() == 'y'
+    biz_logo = Prompt.ask("[bold cyan]💠[/bold cyan] Logo URL (or path)", default="", console=console).strip()
+    biz_about = Prompt.ask("[bold cyan]💠[/bold cyan] About Us Text", default="", console=console).strip()
+    
+    console.print(f"\n[bold cyan]🚀 Scaffolding project at {target_dir}...[/bold cyan]")
+    os.makedirs(target_dir)
+    
+    config_data = build_config(biz_name, biz_phone, brand_color, biz_address, biz_city, biz_state, biz_zip, biz_email, biz_tagline, biz_fb, biz_ig, biz_yelp, biz_wa, biz_espanol, biz_logo, biz_about)
+    with open(os.path.join(target_dir, "config.json"), "w") as f:
+        json.dump(config_data, f, indent=4)
+        
+    inventory_data = [{"id": "1", "year": 2024, "make": "Service", "model": "Package", "trim": "Base", "price": 0, "mileage": 0, "status": "available", "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Placeholder", "features": ["Feature 1", "Feature 2"], "badges": ["Featured"]}]
+    with open(os.path.join(target_dir, "inventory.json"), "w") as f:
+        json.dump(inventory_data, f, indent=4)
+        
+    shutil.copy2(TEMPLATE_HTML, os.path.join(target_dir, "template.html"))
+    shutil.copy2(RENDER_SCRIPT, os.path.join(target_dir, "render.py"))
+    
+    console.print("[bold cyan]Running initial compile...[/bold cyan]")
+    os.chdir(target_dir)
+    os.system("python3 render.py")
+    
+    console.print(f"\n[bold green]✅ SUCCESS! Website generated at {target_dir}/dist/index.html[/bold green]")
+
+if __name__ == '__main__':
+    main()

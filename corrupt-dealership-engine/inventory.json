@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1",
+    "year": 2024,
+    "make": "Template Make",
+    "model": "Template Model",
+    "trim": "Base Trim",
+    "price": 0,
+    "mileage": 0,
+    "status": "available",
+    "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Placeholder+Image",
+    "gallery": [
+      "https://placehold.co/600x400/1a1a1a/444444?text=Placeholder+Image"
+    ],
+    "features": [
+      "Feature 1",
+      "Feature 2",
+      "Feature 3"
+    ],
+    "badges": ["Featured"]
+  }
+]
