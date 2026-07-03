@@ -36,9 +36,12 @@ def main():
     
     console.print("  [2] [bold magenta]SaaS Membership & Booking[/bold magenta] (Dynamic Next.js + Supabase + Deno)")
     console.print("      [dim]Used for Gyms, Salons, Clubs. Includes liability waivers & RLS policies.[/dim]\n")
+
+    console.print("  [3] [bold green]Lead Hunter & Prospecting[/bold green] (Google Places API)")
+    console.print("      [dim]Finds local business leads and auto-generates custom websites for pitching.[/dim]\n")
     
     try:
-        choice = IntPrompt.ask("\n[bold yellow]>[/bold yellow] Enter selection", choices=["1", "2"])
+        choice = IntPrompt.ask("\n[bold yellow]>[/bold yellow] Enter selection", choices=["1", "2", "3"])
         
         if choice == 1:
             script = os.path.join(FACTORY_ROOT, "corrupt-dealership-engine", "corrupt-cli")
@@ -47,6 +50,10 @@ def main():
         elif choice == 2:
             script = os.path.join(FACTORY_ROOT, "CorruptCLI-Engine", "corrupt.py")
             console.print("\n[bold magenta]Routing to SaaS Booking Engine...[/bold magenta]")
+            subprocess.run(["python3", script])
+        elif choice == 3:
+            script = os.path.join(FACTORY_ROOT, "bin", "hunter.py")
+            console.print("\n[bold green]Initializing Lead Hunter Module...[/bold green]")
             subprocess.run(["python3", script])
             
     except KeyboardInterrupt:
