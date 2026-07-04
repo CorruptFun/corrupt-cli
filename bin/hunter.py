@@ -51,7 +51,7 @@ def hunt_leads(query, api_key):
             return []
             
         results = data.get('results', [])
-        return results[:3] # Limit to top 3
+        return results
     except Exception as e:
         console.print(f"[bold red]Error fetching leads: {e}[/bold red]")
         return []
@@ -83,7 +83,7 @@ def main():
     
     query = f"{industry} in {city}, {state}"
     
-    console.print(f"\n[bold green]Hunting for top 3 leads: {query}...[/bold green]")
+    console.print(f"\n[bold green]Hunting for leads: {query}...[/bold green]")
     
     leads = hunt_leads(query, api_key)
     
@@ -92,13 +92,39 @@ def main():
         track_event("hunter", industry_target=industry, city_target=city, state_target=state, status="failed", error_msg="No leads or API error")
         return
         
-    console.print("\n[bold cyan]Found Leads:[/bold cyan]")
-    for idx, lead in enumerate(leads, 1):
-        name = lead.get('name', 'Unknown')
-        address = lead.get('formatted_address', 'Unknown Address')
-        console.print(f"  [{idx}] {name} - [dim]{address}[/dim]")
+    offset = 0
+    selected_leads = []
+    
+    while True:
+        current_batch = leads[offset:offset+3]
+        if not current_batch:
+            console.print("[yellow]No more results found in this area. Looping back to the start.[/yellow]")
+            offset = 0
+            continue
+            
+        console.print(f"\n[bold cyan]Found Leads (Batch {(offset//3)+1}):[/bold cyan]")
+        for idx, lead in enumerate(current_batch, 1):
+            name = lead.get('name', 'Unknown')
+            address = lead.get('formatted_address', 'Unknown Address')
+            console.print(f"  [{idx}] {name} - [dim]{address}[/dim]")
+            
+        console.print("\n  [bold green][y][/bold green] Build these 3 sites")
+        console.print("  [bold yellow][r][/bold yellow] Reroll (Show next 3 targets)")
+        console.print("  [bold red][a][/bold red] Abort hunt")
         
-    console.print(f"\n[bold green]Auto-Generating {len(leads)} Pitch Websites...[/bold green]")
+        action = Prompt.ask("\n[bold cyan]>[/bold cyan] Action", choices=["y", "r", "a"], default="y").strip().lower()
+        
+        if action == 'y':
+            selected_leads = current_batch
+            break
+        elif action == 'r':
+            offset += 3
+            continue
+        elif action == 'a':
+            console.print("[red]Aborting hunt.[/red]")
+            return
+
+    console.print(f"\n[bold green]Auto-Generating {len(selected_leads)} Pitch Websites...[/bold green]")
     
     # Engine routing mapping:
     # 1 (Dealership) -> corrupt-dealership-engine
@@ -110,7 +136,7 @@ def main():
     output_dir = os.path.join(os.getcwd(), "prospects", f"{city.lower().replace(' ', '_')}_{industry.replace(' ', '_')}")
     os.makedirs(output_dir, exist_ok=True)
     
-    for lead in leads:
+    for lead in selected_leads:
         name = lead.get('name', 'Unknown')
         addr_parts = lead.get('formatted_address', '').split(',')
         street = addr_parts[0] if len(addr_parts) > 0 else '123 Main St'
@@ -138,7 +164,7 @@ def main():
                 
     duration_ms = int((time.time() - start_time) * 1000)
     
-    console.print(f"\n[bold green]✅ Success![/bold green] Generated {len(leads)} pitch-ready websites in ./prospects/")
+    console.print(f"\n[bold green]✅ Success![/bold green] Generated {len(selected_leads)} pitch-ready websites in ./prospects/")
     
     # Fire telemetry quietly
     track_event("hunter", industry_target=industry, city_target=city, state_target=state, duration_ms=duration_ms, status="success")
