@@ -1,5 +1,5 @@
 -- ==============================================
--- REFORM HER: CREDIT SYSTEM ARCHITECTURE UPDATE
+-- CREDIT SYSTEM ARCHITECTURE
 -- ==============================================
 
 -- 1. Add class credits and medical notes to the customers table

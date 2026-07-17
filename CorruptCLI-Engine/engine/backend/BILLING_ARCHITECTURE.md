@@ -1,6 +1,4 @@
-# Reform HER - Billing & Subscription Architecture
-
-**Deployed: May 7, 2026**
+# Billing & Subscription Architecture
 
 ## Overview
 A zero-friction, automated billing engine utilizing Stripe, Supabase Edge Functions, and Vercel Cron. The architecture handles subscription lifecycle events, automated 7-day and 30-day renewal reminders via Resend, and passwordless Magic Links for Stripe Customer Portal management.
