@@ -19,6 +19,14 @@
     "primary_color_hover": "#b91c1c",
     "theme": "dark"
   },
+  "financing": {
+    "_comment": "Opt-in. Only set true if this dealer genuinely finances in-house. Credit advertising is regulated (FTC / TILA Reg Z).",
+    "bhph_enabled": false
+  },
+  "leads": {
+    "_comment": "Any URL accepting a JSON POST (Formspree, Web3Forms, a serverless function). Leave blank and the form falls back to the visitor's mail client rather than dropping the lead.",
+    "endpoint": ""
+  },
   "auth": {
     "whitelisted_emails": [
       "admin@yourdomain.com"

@@ -1,7 +1,19 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import sys
+
+def apply_conditional(text, flag_name, enabled):
+    """Keep or strip a {% if FLAG %}...{% endif %} block.
+
+    Each flag is matched by name, so blocks stay independent of one another.
+    """
+    pattern = re.compile(
+        r"\{%\s*if\s+" + re.escape(flag_name) + r"\s*%\}(.*?)\{%\s*endif\s*%\}",
+        re.DOTALL,
+    )
+    return pattern.sub((lambda m: m.group(1)) if enabled else "", text)
 
 def main():
     # Directories
@@ -54,8 +66,28 @@ def main():
         # Class stylings based on status
         sold_overlay = "filter grayscale-[40%]" if is_sold else ""
         sold_opacity = "opacity-60" if is_sold else ""
-        sold_badge = "Just Sold" if is_sold else car.get("badge", "Great Value")
+        # Accept either "badge" (string) or "badges" (list)
+        badges = car.get("badges") or []
+        listing_badge = car.get("badge") or (badges[0] if badges else "Great Value")
+        sold_badge = "Just Sold" if is_sold else listing_badge
         badge_bg = "bg-zinc-800 text-zinc-400" if is_sold else "bg-primary badge-shadow"
+
+        # Optional fields: omit the element entirely rather than printing "None"
+        specs_highlight = car.get("specs_highlight") or ""
+        specs_html = (
+            f'<div class="absolute bottom-4 right-4 bg-black/80 backdrop-blur-sm text-primary '
+            f'text-xs font-black px-3 py-1 rounded">{specs_highlight}</div>'
+        ) if specs_highlight else ""
+
+        description = car.get("description") or ""
+        description_html = (
+            f'<p class="text-zinc-400 text-sm mb-4">{description}</p>'
+        ) if description else ""
+
+        payment_est = car.get("payment_est") or ""
+        payment_html = (
+            f'<span class="block text-[10px] text-zinc-500 mt-0.5">{payment_est}</span>'
+        ) if payment_est else ""
         
         if is_sold:
             action_button = '<button disabled class="text-xs font-bold bg-zinc-900 text-zinc-600 px-5 py-2.5 rounded-lg cursor-not-allowed uppercase tracking-wider">Sold</button>'
@@ -69,12 +101,12 @@ def main():
                     <div class="relative h-52 overflow-hidden bg-zinc-900">
                         <img src="{car.get('main_image')}" alt="{car.get('year')} {car.get('make')} {car.get('model')}" class="w-full h-full object-cover {sold_overlay}">
                         <div class="absolute top-4 left-4 {badge_bg} text-[10px] font-black px-3 py-1 rounded uppercase tracking-wider">{sold_badge}</div>
-                        <div class="absolute bottom-4 right-4 bg-black/80 backdrop-blur-sm text-primary text-xs font-black px-3 py-1 rounded">{car.get('specs_highlight')}</div>
+                        {specs_html}
                     </div>
                     <div class="p-6 {sold_opacity}">
-                        <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">{car.get('mileage', 0):,} Miles • {car.get('trim', 'AWD')}</div>
+                        <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-1">{car.get('mileage', 0):,} Miles • {car.get('trim', '')}</div>
                         <h3 class="text-xl font-bold text-white mb-2">{car.get('year')} {car.get('make')} {car.get('model')}</h3>
-                        <p class="text-zinc-400 text-sm mb-4">{car.get('description')}</p>
+                        {description_html}
                         <div class="grid grid-cols-2 gap-2 text-[11px] text-zinc-500 border-t border-zinc-900 pt-4 mb-4">
 {features_html}                        </div>
                     </div>
@@ -83,7 +115,7 @@ def main():
                     <div class="flex justify-between items-baseline pt-4">
                         <div>
                             <span class="text-2xl font-black text-white">{price_str}</span>
-                            <span class="block text-[10px] text-zinc-500 mt-0.5">{car.get('payment_est')}</span>
+                            {payment_html}
                         </div>
                         {action_button}
                     </div>
@@ -115,12 +147,16 @@ def main():
     rendered = rendered.replace("<!-- BRAND_LOGO_PLACEHOLDER -->", brand_html)
     
     rendered = rendered.replace("{{DEALERSHIP_NAME}}", config["dealership"]["name"])
+    rendered = rendered.replace("{{DEALERSHIP_SUFFIX}}", config["dealership"].get("suffix", ""))
     rendered = rendered.replace("{{ABOUT_US}}", config["dealership"].get("about_us", f"Welcome to {config['dealership']['name']}."))
     rendered = rendered.replace("{{LOCATION}}", config["dealership"]["location"])
     rendered = rendered.replace("{{ADDRESS}}", config["dealership"]["address"])
     rendered = rendered.replace("{{PHONE_RAW}}", config["dealership"]["phone"])
     rendered = rendered.replace("{{PHONE_FORMATTED}}", config["dealership"]["phone_formatted"])
     rendered = rendered.replace("{{EMAIL}}", config["dealership"]["email"])
+    # Where the financing form POSTs its leads. Empty => the form falls back to the
+    # visitor's mail client rather than dropping the lead.
+    rendered = rendered.replace("{{LEAD_ENDPOINT}}", config.get("leads", {}).get("endpoint", ""))
     rendered = rendered.replace("{{FACEBOOK_URL}}", config["dealership"]["facebook_url"])
     rendered = rendered.replace("{{MAP_QUERY}}", config["dealership"]["map_query"])
     rendered = rendered.replace("{{HERO_TITLE_1}}", config["dealership"]["tagline"].split(".")[0] + ".")
@@ -131,13 +167,16 @@ def main():
     rendered = rendered.replace("{{PRIMARY_COLOR}}", config["branding"]["primary_color"])
     rendered = rendered.replace("{{PRIMARY_COLOR_HOVER}}", config["branding"]["primary_color_hover"])
     
-    # Conditional logic
-    if config["dealership"]["se_habla_espanol"]:
-        rendered = rendered.replace("{% if SE_HABLA_ESPANOL %}", "").replace("{% endif %}", "")
-    else:
-        # Strip out Se Habla Espanol block
-        import re
-        rendered = re.sub(r"\{% if SE_HABLA_ESPANOL %\}.*?\{% endif %\}", "", rendered, flags=re.DOTALL)
+    # Conditional blocks.
+    # bhph_enabled is opt-in: in-house/all-credit messaging only renders when the
+    # dealer has explicitly confirmed it applies to them. Absolute claims
+    # ("guaranteed approval", "no credit required") are never shipped in either mode,
+    # and specific credit terms are avoided — they are triggering terms under
+    # Reg Z 1026.24(d) and would require disclosures this template does not make.
+    bhph = bool(config.get("financing", {}).get("bhph_enabled", False))
+    rendered = apply_conditional(rendered, "SE_HABLA_ESPANOL", config["dealership"].get("se_habla_espanol", False))
+    rendered = apply_conditional(rendered, "BHPH", bhph)
+    rendered = apply_conditional(rendered, "STANDARD_FINANCING", not bhph)
         
     # Array variables
     whitelisted_emails_js = json.dumps(config["auth"]["whitelisted_emails"])

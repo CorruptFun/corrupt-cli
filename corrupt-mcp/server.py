@@ -33,11 +33,13 @@ def scaffold_inventory_site(
     se_habla_espanol: bool = False,
     logo_url: str = "",
     about_us: str = "",
+    bhph_enabled: bool = False,
+    lead_endpoint: str = "",
     force_overwrite: bool = False
 ) -> str:
     """
     Scaffolds a static inventory/service dealership website.
-    
+
     Args:
         target_path: The absolute path where the website should be generated.
         biz_name: Name of the business.
@@ -48,6 +50,12 @@ def scaffold_inventory_site(
         biz_state: State (e.g. KS).
         biz_zip: Zip code.
         brand_color: Primary hex color.
+        bhph_enabled: Only set True if the dealer genuinely finances in-house.
+            Enables Buy-Here-Pay-Here messaging. Credit advertising is regulated
+            (FTC / TILA Reg Z) — do not enable speculatively.
+        lead_endpoint: URL accepting a JSON POST for financing leads (Formspree,
+            Web3Forms, a serverless function). If empty, the form falls back to the
+            visitor's mail client so leads are never silently dropped.
         force_overwrite: If True, deletes existing directory at target_path.
     """
     if os.path.exists(target_path):
@@ -87,16 +95,36 @@ def scaffold_inventory_site(
             "theme": "dark",
             "logo_url": logo_url
         },
+        "financing": {
+            "bhph_enabled": bhph_enabled
+        },
+        "leads": {
+            "endpoint": lead_endpoint
+        },
         "auth": {
             "whitelisted_emails": ["admin@local.com"]
         },
         "default_badges": ["New", "Featured"]
     }
-    
+
     with open(os.path.join(target_path, "config.json"), "w") as f:
         json.dump(config_data, f, indent=4)
-        
-    inventory_data = [{"id": "1", "year": 2024, "make": "Service", "model": "Package", "trim": "Base", "price": 0, "mileage": 0, "status": "available", "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Placeholder", "features": ["Feature 1", "Feature 2"], "badges": ["Featured"]}]
+
+    inventory_data = [{
+        "id": "1",
+        "year": 2019,
+        "make": "Example Make",
+        "model": "Example Model",
+        "trim": "LT",
+        "price": 14900,
+        "mileage": 78500,
+        "status": "available",
+        "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Add+Your+Photo",
+        "description": "Replace with a short, honest description of this vehicle.",
+        "specs_highlight": "4WD",
+        "features": ["Feature 1", "Feature 2", "Feature 3"],
+        "badges": ["Featured"]
+    }]
     with open(os.path.join(target_path, "inventory.json"), "w") as f:
         json.dump(inventory_data, f, indent=4)
         

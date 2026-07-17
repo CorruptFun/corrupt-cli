@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.template
+!.env.example
+
+# Generated client sites (the Hunter and SaaS CLI write here).
+# NOTE: corrupt-dealership-engine/dist/index.html is a tracked demo preview, so
+# don't blanket-ignore dist/ — only the generated client output locations.
+/prospects/
+/projects/clients/
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Private working docs — must never ship in a distributable/clonable repo.
+# REFORMHER_SECURITY_FIX_PROMPT.md details live vulnerabilities in a real client site.
+REFORMHER_SECURITY_FIX_PROMPT.md

@@ -1,0 +1,9 @@
+# Corrupt Factory — optional extras. Not needed to build sites.
+#   pip3 install -r requirements-optional.txt
+#
+# mcp:      the MCP server (corrupt-mcp/server.py) that lets AI agents scaffold
+#           sites autonomously. Requires Python 3.10+ — it will not install on
+#           older interpreters, which is fine; the CLI works without it.
+# requests: the SaaS pre-flight validator (CorruptCLI-Engine/validate.py).
+mcp>=1.0
+requests>=2.31

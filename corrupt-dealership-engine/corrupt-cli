@@ -5,11 +5,12 @@ import json
 import shutil
 import argparse
 
-ENGINE_DIR = "/Users/gravity/Documents/corrupt-dealership-engine"
+# Resolve the engine relative to this script so the CLI works from any checkout.
+ENGINE_DIR = os.path.dirname(os.path.realpath(__file__))
 TEMPLATE_HTML = os.path.join(ENGINE_DIR, "template.html")
 RENDER_SCRIPT = os.path.join(ENGINE_DIR, "render.py")
 
-def build_config(name, phone, color, address, city, state, zip_code, email, tagline="", facebook="", instagram="", yelp="", whatsapp="", espanol=False, logo_url="", about_us=""):
+def build_config(name, phone, color, address, city, state, zip_code, email, tagline="", facebook="", instagram="", yelp="", whatsapp="", espanol=False, logo_url="", about_us="", bhph=False, lead_endpoint=""):
     if not about_us:
         about_us = f"Welcome to {name}, your trusted source for reliable vehicles in {city}. We are committed to honest service and competitive pricing to get you behind the wheel today."
     
@@ -37,6 +38,12 @@ def build_config(name, phone, color, address, city, state, zip_code, email, tagl
             "primary_color_hover": color,
             "theme": "dark",
             "logo_url": logo_url
+        },
+        "financing": {
+            "bhph_enabled": bhph
+        },
+        "leads": {
+            "endpoint": lead_endpoint
         },
         "auth": {
             "whitelisted_emails": ["admin@local.com"]
@@ -101,15 +108,42 @@ def main():
     biz_espanol = Prompt.ask("[bold cyan]💠[/bold cyan] Se Habla Español? (y/N)", default="n", console=console).strip().lower() == 'y'
     biz_logo = Prompt.ask("[bold cyan]💠[/bold cyan] Logo URL (or path)", default="", console=console).strip()
     biz_about = Prompt.ask("[bold cyan]💠[/bold cyan] About Us Text", default="", console=console).strip()
+
+    console.print("\n[dim]Buy-Here-Pay-Here messaging is opt-in. Only enable it if this dealer")
+    console.print("actually finances in-house — credit advertising is regulated (FTC / TILA Reg Z).[/dim]")
+    biz_bhph = Prompt.ask("[bold cyan]💠[/bold cyan] Does this dealer finance in-house (BHPH)? (y/N)", default="n", console=console).strip().lower() == 'y'
+
+    console.print("\n[dim]Where should financing leads be sent? Paste any URL that accepts a JSON POST")
+    console.print("(Formspree, Web3Forms, a Vercel function...). Leave blank and the form will fall")
+    console.print("back to the visitor's email app — leads still reach the dealer, just clumsily.[/dim]")
+    biz_leads = Prompt.ask("[bold cyan]💠[/bold cyan] Lead endpoint URL", default="", console=console).strip()
     
     console.print(f"\n[bold cyan]🚀 Scaffolding project at {target_dir}...[/bold cyan]")
     os.makedirs(target_dir)
     
-    config_data = build_config(biz_name, biz_phone, brand_color, biz_address, biz_city, biz_state, biz_zip, biz_email, biz_tagline, biz_fb, biz_ig, biz_yelp, biz_wa, biz_espanol, biz_logo, biz_about)
+    config_data = build_config(biz_name, biz_phone, brand_color, biz_address, biz_city, biz_state, biz_zip, biz_email, biz_tagline, biz_fb, biz_ig, biz_yelp, biz_wa, biz_espanol, biz_logo, biz_about, biz_bhph, biz_leads)
     with open(os.path.join(target_dir, "config.json"), "w") as f:
         json.dump(config_data, f, indent=4)
         
-    inventory_data = [{"id": "1", "year": 2024, "make": "Service", "model": "Package", "trim": "Base", "price": 0, "mileage": 0, "status": "available", "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Placeholder", "features": ["Feature 1", "Feature 2"], "badges": ["Featured"]}]
+    # Seed listing. Optional fields (description, specs_highlight, payment_est) are
+    # omitted from the rendered card when absent. payment_est is intentionally left
+    # out by default: advertising a monthly payment is a triggering term under
+    # Reg Z 1026.24(d) and pulls in disclosure requirements.
+    inventory_data = [{
+        "id": "1",
+        "year": 2019,
+        "make": "Example Make",
+        "model": "Example Model",
+        "trim": "LT",
+        "price": 14900,
+        "mileage": 78500,
+        "status": "available",
+        "main_image": "https://placehold.co/600x400/1a1a1a/444444?text=Add+Your+Photo",
+        "description": "Replace with a short, honest description of this vehicle.",
+        "specs_highlight": "4WD",
+        "features": ["Feature 1", "Feature 2", "Feature 3"],
+        "badges": ["Featured"]
+    }]
     with open(os.path.join(target_dir, "inventory.json"), "w") as f:
         json.dump(inventory_data, f, indent=4)
         

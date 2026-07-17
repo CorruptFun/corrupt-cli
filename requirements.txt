@@ -1,0 +1,10 @@
+# Corrupt Factory — core dependency for the interactive CLI.
+#   pip3 install -r requirements.txt
+#
+# This is all the `corrupt` CLI and the dealership site generator need.
+# (render.py itself is pure standard library.)
+#
+# Optional extras live in requirements-optional.txt — the MCP server and the
+# SaaS pre-flight validator. They are not required to build sites and are
+# installed best-effort by install.sh, because `mcp` needs Python 3.10+.
+rich>=13.0
