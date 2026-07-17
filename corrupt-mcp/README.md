@@ -1,29 +1,46 @@
 # CorruptCLI MCP Server
 
-This directory contains the Model Context Protocol (MCP) server for the Corrupt Solutions SaaS Engine. It allows AI agents (like Claude Desktop, Cursor, or Hermes) to autonomously scaffold B2B websites and SaaS platforms without human terminal prompts.
+This directory contains the Model Context Protocol (MCP) server for the Corrupt
+factory. It lets AI agents (Claude Desktop, Cursor, etc.) scaffold sites
+autonomously, without human terminal prompts.
 
-## Tools Exposed
-- `scaffold_inventory_site`: Builds the static Next.js Dealership/Mechanic inventory engine.
-- `scaffold_saas_platform`: Builds the Next.js + Supabase membership/booking platform with liability waivers and Resend integrations.
+## Tools exposed
+- `scaffold_inventory_site`: Builds the static dealership/local-service site
+  (the Simple tier — `corrupt-dealership-engine`).
+- `scaffold_saas_platform`: Builds the Next.js + Supabase membership/booking
+  platform (`CorruptCLI-Engine`) with optional liability waivers and email.
+
+> The Pro dealership tier (`corrupt-dealership-pro`) is currently a
+> clone-and-configure template and is not yet exposed as an MCP tool.
+
+## Requirements
+Install the optional `mcp` dependency (needs Python 3.10+):
+
+```bash
+pip3 install -r requirements-optional.txt   # from the repo root
+```
 
 ## How to use with Claude Desktop
-Add this to your `claude_desktop_config.json`:
+Add this to your `claude_desktop_config.json`, using the absolute path to your
+checkout of this repo:
 
 ```json
 {
   "mcpServers": {
     "corrupt-engine": {
-      "command": "/Users/gravity/.hermes/hermes-agent/venv/bin/python",
+      "command": "python3",
       "args": [
-        "/Users/gravity/Documents/corrupt-mcp/server.py"
+        "/path/to/corrupt-cli/corrupt-mcp/server.py"
       ]
     }
   }
 }
 ```
 
+If `mcp` is installed in a virtualenv, point `command` at that env's `python`
+instead of the system `python3`.
+
 ## How to use with Cursor
-Go to Settings > Features > MCP.
-Add a new stdio server:
+Go to Settings > Features > MCP and add a new stdio server:
 - **Name:** `corrupt-engine`
-- **Command:** `/Users/gravity/.hermes/hermes-agent/venv/bin/python /Users/gravity/Documents/corrupt-mcp/server.py`
+- **Command:** `python3 /path/to/corrupt-cli/corrupt-mcp/server.py`

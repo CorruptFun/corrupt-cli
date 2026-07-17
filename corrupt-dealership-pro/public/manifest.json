@@ -1,0 +1,21 @@
+{
+  "name": "Acme Motors LLC",
+  "short_name": "Acme Motors",
+  "description": "Reliable used cars, trucks & SUVs in Springfield, ST. Buy Here Pay Here & bank financing available.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["auto", "shopping"],
+  "lang": "en",
+  "dir": "ltr"
+}

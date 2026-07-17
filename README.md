@@ -6,17 +6,33 @@ The **Corrupt CLI** is a zero-configuration scaffolding engine and Model Context
 
 Built by [Corrupt Solutions](https://corrupt.solutions).
 
-## 🚀 Two Architectures, One Engine
+## 🚀 The generators
 
-1. **Local Service & Inventory (Static Engine)**
-   - **Target:** Dealerships, Mechanics, HVAC, Local Services.
-   - **Stack:** HTML/JS/Tailwind static generation + Python build pipeline.
-   - **Features:** High-performance SEO, built-in dual-path credit applications, local inventory JSON sync, and extreme load speeds.
+Three white-label site generators. Full detail + a "which one do I pick?" guide in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-2. **SaaS Membership & Booking (Dynamic Engine)**
-   - **Target:** Gyms, Salons, Clubs, Member-based orgs.
-   - **Stack:** Next.js + Supabase + Deno Edge Functions.
-   - **Features:** Stripe billing, automated scheduling, role-level security (RLS), digital liability waivers, and multi-tenant webhook architecture.
+**Dealership / Local Service — two tiers:**
+
+1. **Simple — `corrupt-dealership-engine/`**
+   - **Stack:** static HTML/JS/Tailwind + Python build. No backend.
+   - **What:** a fast brochure site with real lead capture. Edit a JSON, re-render,
+     drop `dist/` on any static host. Cheapest and fastest to ship.
+
+2. **Pro — `corrupt-dealership-pro/`**
+   - **Stack:** Next.js + Supabase (Postgres/RLS, Auth, Storage, Edge Functions).
+   - **What:** the static site *plus* a real, RLS-secured admin portal — OTP login,
+     database inventory with photo uploads, credit-application inbox. Configured by
+     editing one config file + `.env` (no token replacement).
+
+**Membership / Booking SaaS — `CorruptCLI-Engine/`**
+   - **Target:** Gyms, Salons, Clubs, member-based orgs.
+   - **Stack:** Next.js + Supabase + Deno Edge Functions; Stripe billing, scheduling,
+     RLS, optional liability waivers.
+
+> `engine` vs `pro`: the Simple tier has **no backend** (static, edit-JSON-and-render);
+> the Pro tier is a **full app** with a real admin and a database. Pick Simple for
+> speed and zero infrastructure, Pro for a live admin and DB-backed inventory. See
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ---
 
