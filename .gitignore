@@ -22,5 +22,7 @@ venv/
 *.swp
 
 # Private working docs — must never ship in a distributable/clonable repo.
-# REFORMHER_SECURITY_FIX_PROMPT.md details live vulnerabilities in a real client site.
+# These carry live infrastructure detail (SSH/IPs), unpatched-vulnerability lists,
+# client names, and internal business strategy. They stay local only.
 REFORMHER_SECURITY_FIX_PROMPT.md
+ROADMAP.md
