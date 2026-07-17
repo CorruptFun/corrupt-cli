@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pro Dealership Stand-Up — Corrupt Factory</title>
+</head>
+<body>
+<style>
+  :root{
+    /* Brand green */
+    --brand-bright:#4ade80;                 /* the cover glow */
+    --brand-grad:linear-gradient(96deg,#8affc0 0%,#31c46b 100%);
+
+    /* ---- Manual palette · light (default) ---- */
+    --paper:#fbfcfb;
+    --paper-2:#f2f5f3;
+    --ink:#141a17;
+    --ink-soft:#55605a;
+    --ink-dim:#8b948f;
+    --line:rgba(20,26,23,.11);
+    --line-soft:rgba(20,26,23,.07);
+    --accent:#12894a;                       /* readable green on light */
+    --accent-soft:rgba(18,137,74,.09);
+    --warn:#b0730a;      --warn-soft:rgba(176,115,10,.10);
+    --danger:#bb3a2c;    --danger-soft:rgba(187,58,44,.09);
+    --code-bg:#11181a;                       /* dark code inset on the light page */
+    --code-ink:#d7e7dd;
+    --code-accent:#7bf1a8;
+    --code-str:#e7c07b;
+    --code-dim:#7c8a83;
+
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:Inter,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --measure:74ch;
+    --edge:clamp(20px,5vw,64px);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#0e1312; --paper-2:#161c1a;
+      --ink:#eef3f0; --ink-soft:#9aa8a0; --ink-dim:#66746c;
+      --line:rgba(255,255,255,.11); --line-soft:rgba(255,255,255,.06);
+      --accent:#4ade80; --accent-soft:rgba(74,222,128,.12);
+      --warn:#f5b301; --warn-soft:rgba(245,179,1,.12);
+      --danger:#ff6f61; --danger-soft:rgba(255,111,97,.11);
+      --code-bg:#0a0e0c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0e1312; --paper-2:#161c1a;
+    --ink:#eef3f0; --ink-soft:#9aa8a0; --ink-dim:#66746c;
+    --line:rgba(255,255,255,.11); --line-soft:rgba(255,255,255,.06);
+    --accent:#4ade80; --accent-soft:rgba(74,222,128,.12);
+    --warn:#f5b301; --warn-soft:rgba(245,179,1,.12);
+    --danger:#ff6f61; --danger-soft:rgba(255,111,97,.11);
+    --code-bg:#0a0e0c;
+  }
+  :root[data-theme="light"]{
+    --paper:#fbfcfb; --paper-2:#f2f5f3;
+    --ink:#141a17; --ink-soft:#55605a; --ink-dim:#8b948f;
+    --line:rgba(20,26,23,.11); --line-soft:rgba(20,26,23,.07);
+    --accent:#12894a; --accent-soft:rgba(18,137,74,.09);
+    --warn:#b0730a; --warn-soft:rgba(176,115,10,.10);
+    --danger:#bb3a2c; --danger-soft:rgba(187,58,44,.09);
+    --code-bg:#11181a;
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0}
+  .page{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.72;letter-spacing:-.004em}
+  ::selection{background:rgba(74,222,128,.28);color:inherit}
+
+  /* ============ COVER (always dark) ============ */
+  .cover{
+    position:relative;overflow:hidden;background:#000;color:#fff;
+    min-height:100svh;display:flex;align-items:center;
+    padding:clamp(56px,10vh,96px) 0;
+  }
+  #stars{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+  .cover-inner{position:relative;z-index:1;width:100%;max-width:1120px;margin:0 auto;padding:0 var(--edge)}
+  .eyebrow{
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.28em;text-transform:uppercase;
+    color:var(--brand-bright);display:flex;align-items:center;gap:12px;margin:0 0 26px;
+  }
+  .eyebrow::before{content:"";width:34px;height:1px;background:var(--brand-bright);box-shadow:0 0 12px rgba(74,222,128,.5)}
+  .cover h1{
+    font-weight:800;font-size:clamp(2.9rem,8vw,6rem);line-height:.94;letter-spacing:-.045em;
+    margin:0;text-wrap:balance;color:#fff;
+  }
+  .cover h1 .grad{
+    background:var(--brand-grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 6px 44px rgba(74,222,128,.4);
+  }
+  .deck{color:#aeb9b2;max-width:56ch;margin:30px 0 0;font-size:clamp(1.05rem,2vw,1.28rem);line-height:1.6;letter-spacing:-.01em}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:34px}
+  .chip{
+    font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:#c3ccc6;
+    background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);padding:7px 13px;border-radius:999px;
+  }
+  .chip b{color:var(--brand-bright);font-weight:600}
+  .scrollcue{
+    display:inline-flex;align-items:center;gap:9px;margin-top:44px;
+    font-family:var(--mono);font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:#7f8a84;text-decoration:none;border:none;
+  }
+  .scrollcue span{color:var(--brand-bright)}
+  .scrollcue:hover{color:#c3ccc6}
+
+  /* ============ MANUAL (clean, theme-aware) ============ */
+  .manual{max-width:var(--measure);margin:0 auto;padding:8px var(--edge) 40px}
+  a{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 32%,transparent)}
+  a:hover{border-bottom-color:var(--accent)}
+  a:focus-visible,.scrollcue:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:3px}
+
+  section{padding:clamp(38px,6vh,58px) 0;border-top:1px solid var(--line-soft)}
+  section:first-child{border-top:none}
+  .snum{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 12px;display:block}
+  h2{
+    font-weight:750;font-size:clamp(1.5rem,3.4vw,2rem);line-height:1.1;letter-spacing:-.028em;
+    margin:0 0 .55em;padding-left:15px;border-left:3px solid var(--accent);text-wrap:balance;color:var(--ink);
+  }
+  h3{font-weight:700;font-size:1.1rem;letter-spacing:-.012em;color:var(--ink);margin:1.9em 0 .5em}
+  h3 .k{font-family:var(--mono);font-weight:600;color:var(--accent);font-size:.95em}
+  p{margin:.75em 0;color:var(--ink-soft)}
+  strong{color:var(--ink);font-weight:650}
+  em{font-style:italic}
+  ul,ol{color:var(--ink-soft);padding-left:1.3em;margin:.7em 0}
+  li{margin:.4em 0}
+  li::marker{color:var(--accent)}
+
+  code{
+    font-family:var(--mono);font-size:.85em;color:var(--accent);
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 18%,transparent);
+    padding:.09em .4em;border-radius:6px;white-space:nowrap;
+  }
+  .codewrap{margin:1.25em 0;border-radius:11px;border:1px solid var(--line);background:var(--code-bg);overflow:hidden}
+  .codewrap .bar{
+    display:flex;align-items:center;gap:8px;padding:9px 15px;border-bottom:1px solid rgba(255,255,255,.07);
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--code-dim);
+  }
+  .codewrap .bar::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--brand-bright);box-shadow:0 0 8px rgba(74,222,128,.5)}
+  pre{margin:0;padding:15px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;line-height:1.62;color:var(--code-ink)}
+  pre code{background:none;border:none;color:inherit;padding:0;white-space:pre;font-size:inherit}
+  .tok-key{color:var(--code-accent)}
+  .tok-str{color:var(--code-str)}
+  .tok-com{color:var(--code-dim);font-style:italic}
+
+  .table-scroll{overflow-x:auto;margin:1.25em 0;border:1px solid var(--line);border-radius:11px}
+  table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:500px;background:var(--paper)}
+  thead th{
+    font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--accent);text-align:left;font-weight:600;background:var(--paper-2);
+    padding:11px 16px;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  td{padding:11px 16px;border-bottom:1px solid var(--line-soft);color:var(--ink-soft);vertical-align:top;font-variant-numeric:tabular-nums}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--accent-soft)}
+  td strong,td b{color:var(--ink)}
+
+  .call{
+    display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+    margin:1.35em 0;padding:14px 17px;border-radius:11px;
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);border-left:3px solid var(--accent);
+  }
+  .call .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);padding-top:3px;white-space:nowrap}
+  .call p{margin:0;color:var(--ink-soft)}
+  .call p + p{margin-top:.55em}
+  .call.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 20%,transparent);border-left-color:var(--warn)}
+  .call.warn .lbl{color:var(--warn)}
+  .call.danger{background:var(--danger-soft);border-color:color-mix(in srgb,var(--danger) 20%,transparent);border-left-color:var(--danger)}
+  .call.danger .lbl{color:var(--danger)}
+
+  .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:6px}
+  .toc a{display:flex;gap:12px;align-items:baseline;background:var(--paper);padding:14px 17px;border:none;color:var(--ink)}
+  .toc a:hover{background:var(--paper-2)}
+  .toc .n{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.05em;font-variant-numeric:tabular-nums}
+  .toc .t{font-size:.94rem;letter-spacing:-.01em}
+
+  .record{display:flex;flex-wrap:wrap;gap:8px 10px;margin:1.25em 0;padding:15px 17px;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 16%,transparent);border-radius:11px;align-items:center}
+  .record .rlbl{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);width:100%;margin-bottom:2px}
+  .record .pill{font-family:var(--mono);font-size:12.5px;color:var(--ink);background:var(--paper);border:1px solid var(--line);padding:6px 12px;border-radius:8px}
+
+  footer{max-width:var(--measure);margin:0 auto;padding:34px var(--edge) 64px;border-top:1px solid var(--line);color:var(--ink-dim);font-size:13.5px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between}
+  footer .brand{font-family:var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--ink-soft)}
+  footer .brand b{color:var(--accent);font-weight:600}
+
+  @media (max-width:560px){
+    h2{padding-left:12px}
+    .call{grid-template-columns:1fr;gap:6px}
+  }
+</style>
+
+<div class="page">
+
+<header class="cover">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="cover-inner">
+    <p class="eyebrow">Corrupt Solutions · Factory Runbook</p>
+    <h1>Standing up dealerships.<br><span class="grad">Pro tier, automated.</span></h1>
+    <p class="deck">Sovereign infrastructure, one command. Scaffold the site, provision Supabase,
+    deploy the edge function and the front end, and pass the security gate — end to end, from API
+    tokens. This is the walkthrough.</p>
+    <div class="chips">
+      <span class="chip"><b>Next.js 16</b> + Supabase</span>
+      <span class="chip">RLS · Auth · Storage · Edge</span>
+      <span class="chip"><b>6</b> MCP tools</span>
+      <span class="chip">Vercel deploy</span>
+      <span class="chip">27/27 RLS gate</span>
+    </div>
+    <a class="scrollcue" href="#contents"><span>↓</span> The walkthrough</a>
+  </div>
+</header>
+
+<main class="manual">
+
+  <section id="contents">
+    <span class="snum">Contents</span>
+    <nav class="toc">
+      <a href="#end-state"><span class="n">01</span><span class="t">What you end up with</span></a>
+      <a href="#before"><span class="n">02</span><span class="t">Before you start</span></a>
+      <a href="#brief"><span class="n">03</span><span class="t">The client brief</span></a>
+      <a href="#oneshot"><span class="n">04</span><span class="t">One-shot stand-up</span></a>
+      <a href="#steps"><span class="n">05</span><span class="t">Step by step</span></a>
+      <a href="#manual-steps"><span class="n">06</span><span class="t">After the tools</span></a>
+      <a href="#gate"><span class="n">07</span><span class="t">The security gate</span></a>
+      <a href="#reruns"><span class="n">08</span><span class="t">Re-runs &amp; recovery</span></a>
+      <a href="#trouble"><span class="n">09</span><span class="t">Troubleshooting</span></a>
+      <a href="#risks"><span class="n">10</span><span class="t">Not automated</span></a>
+      <a href="#teardown"><span class="n">11</span><span class="t">Teardown</span></a>
+      <a href="#cheatsheet"><span class="n">12</span><span class="t">Tool cheat-sheet</span></a>
+    </nav>
+    <p style="margin-top:20px">This is the automated equivalent of the manual runbook in the Pro
+    template's <code>README.md</code>. The <strong>Simple</strong> (static) tier and the SaaS engine
+    are covered in <code>ARCHITECTURE.md</code>. Reach for <strong>Pro</strong> when the operator wants
+    a real admin portal, database inventory, photo uploads, and a live lead inbox — and is willing to
+    run Supabase&nbsp;+&nbsp;Vercel.</p>
+  </section>
+
+  <section id="end-state">
+    <span class="snum">§ 01</span>
+    <h2>What a finished stand-up looks like</h2>
+    <p>When you're done, the client has:</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Piece</th><th>Created by</th><th>What it is</th></tr></thead>
+      <tbody>
+        <tr><td>Supabase project</td><td><code>provision_supabase_…</code></td><td>Postgres + RLS, Auth, Storage, Vault, the lead-notification trigger</td></tr>
+        <tr><td>Database schema</td><td>same</td><td><code>0001_initial_schema.sql</code>, applied once — first super admin seeded, three Vault secrets set</td></tr>
+        <tr><td>Edge function</td><td><code>deploy_function_…</code></td><td><code>send-credit-app-notification</code> (emails leads via Resend)</td></tr>
+        <tr><td>Vercel project + deploy</td><td><code>deploy_vercel_…</code></td><td>the live Next.js site at <code>&lt;project&gt;.vercel.app</code></td></tr>
+        <tr><td>Generated site folder</td><td><code>scaffold_…</code></td><td>the app source, <strong>outside the repo</strong>, with <code>site.ts</code> + <code>.env.local</code></td></tr>
+        <tr><td>Passing security gate</td><td><code>verify_…</code></td><td><code>rls_regression.sh</code> green against the new project</td></tr>
+      </tbody>
+    </table></div>
+    <p>Still <strong>manual</strong> afterward (§06): the custom domain, verifying the Resend sending
+    domain, the first admin login, and entering inventory.</p>
+  </section>
+
+  <section id="before">
+    <span class="snum">§ 02</span>
+    <h2>Before you start</h2>
+
+    <h3>Host prerequisites</h3>
+    <p>The MCP server runs on some machine — your laptop or a workstation. That host needs:</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Tool</th><th>Needed for</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Python 3.10+ · <code>mcp</code> · <code>requests</code></td><td>the server + every Supabase/Vercel API call</td><td><code>pip3 install -r requirements-optional.txt</code></td></tr>
+        <tr><td><code>vercel</code> CLI</td><td>the Vercel <strong>deploy</strong> step</td><td><code>npm i -g vercel</code>. Builds in Vercel's cloud — no local <code>node_modules</code></td></tr>
+        <tr><td><code>psql</code> + <code>bash</code></td><td>the <strong>verify</strong> gate</td><td>any Postgres 14+ client</td></tr>
+        <tr><td><code>node</code> / <code>npm</code></td><td>only to run the site locally</td><td>not required to deploy</td></tr>
+      </tbody>
+    </table></div>
+    <div class="call"><span class="lbl">Pure REST</span><p>Provisioning Supabase and deploying the edge function need <strong>no</strong> Supabase CLI, Deno, or Docker — they go straight over the Management API.</p></div>
+
+    <h3>Register the MCP server</h3>
+    <p>Add the server to your agent (Claude Desktop / Cursor / Claude Code) and put the tokens in the
+    server's <strong>environment</strong> so they never appear in chat:</p>
+    <div class="codewrap"><div class="bar">claude_desktop_config.json</div><pre><code>{
+  <span class="tok-key">"mcpServers"</span>: {
+    <span class="tok-key">"corrupt-engine"</span>: {
+      <span class="tok-key">"command"</span>: <span class="tok-str">"python3"</span>,
+      <span class="tok-key">"args"</span>: [<span class="tok-str">"/abs/path/to/corrupt-cli/corrupt-mcp/server.py"</span>],
+      <span class="tok-key">"env"</span>: {
+        <span class="tok-key">"SUPABASE_ACCESS_TOKEN"</span>: <span class="tok-str">"sbp_..."</span>,
+        <span class="tok-key">"VERCEL_TOKEN"</span>: <span class="tok-str">"..."</span>
+      }
+    }
+  }
+}</code></pre></div>
+    <p>Every tool also accepts tokens as arguments, but the env block is the lower-exposure option.</p>
+
+    <h3>Get your tokens</h3>
+    <ul>
+      <li><strong>Supabase personal access token</strong> (<code>SUPABASE_ACCESS_TOKEN</code>) — from
+      Dashboard → Account → Tokens. It <strong>must</strong> start with <code>sbp_</code>. A project key
+      (<code>sb_secret_…</code>) will <em>not</em> work for the Management API. It can touch every project
+      in your orgs — treat it like a root credential.</li>
+      <li><strong>Vercel token</strong> (<code>VERCEL_TOKEN</code>) — from Vercel → Account → Tokens.
+      Scope it to your team if you use Vercel Teams.</li>
+      <li><strong>Resend API key</strong> (optional, <code>resend_api_key</code>). Without it the site
+      works — lead <em>emails</em> are just skipped until you set it; the lead still saves and shows in
+      the admin inbox.</li>
+    </ul>
+    <div class="call warn"><span class="lbl">Record</span><p>The generated <strong>database password</strong> and <strong>webhook secret</strong> come back in the tool output. Save them — Supabase can't show the DB password again.</p></div>
+  </section>
+
+  <section id="brief">
+    <span class="snum">§ 03</span>
+    <h2>Collect the client brief</h2>
+    <p>Have these ready before you run anything.</p>
+    <h3>Required</h3>
+    <ul>
+      <li>Brand name (e.g. <code>Acme Motors</code>)</li>
+      <li>Phone — any format; digits are extracted for <code>tel:</code> links</li>
+      <li>Public contact email</li>
+      <li>Street, city, state, ZIP</li>
+      <li>Bare domain, no protocol (e.g. <code>example.com</code>)</li>
+      <li><strong>Super-admin email</strong> — the first person who can log into the admin portal. Until
+      this row exists, <em>nobody</em> can (RLS is the whole access layer).</li>
+    </ul>
+    <h3>Optional</h3>
+    <ul>
+      <li><code>legal_suffix</code> (default <code>LLC</code>), <code>legal_name</code>, <code>tagline</code>, <code>founded_year</code>, <code>facebook_url</code></li>
+      <li><code>locations_json</code> — a JSON array of lots (defaults to one <code>main</code> lot). IDs are lowercase / hyphen / underscore, no spaces:
+        <div class="codewrap" style="margin-top:.7em"><div class="bar">locations_json</div><pre><code>[{<span class="tok-key">"id"</span>:<span class="tok-str">"main"</span>,<span class="tok-key">"label"</span>:<span class="tok-str">"Main Lot"</span>},{<span class="tok-key">"id"</span>:<span class="tok-str">"north"</span>,<span class="tok-key">"label"</span>:<span class="tok-str">"North Lot"</span>}]</code></pre></div>
+      </li>
+      <li>Email delivery: <code>resend_api_key</code>, <code>notification_to_emails</code> (comma-separated), <code>notification_sender_email</code> (a verified Resend address), <code>notification_brand_name</code></li>
+      <li>Infra: <code>region</code> (default <code>us-east-1</code>), <code>organization_slug</code> (only if your account has more than one org), Vercel <code>team_id</code></li>
+    </ul>
+  </section>
+
+  <section id="oneshot">
+    <span class="snum">§ 04</span>
+    <h2>One-shot stand-up</h2>
+    <p><code>standup_dealership_pro</code> runs the whole pipeline:
+    <strong>scaffold → provision Supabase → deploy function → deploy Vercel → verify.</strong>
+    Ask your agent to run it, e.g.:</p>
+    <div class="call"><span class="lbl">Prompt</span><p>“Stand up a Pro dealership at <code>/Users/me/sites/acme-motors</code> for Acme Motors, phone 555-555-0100, email sales@example.com, 123 Main St, Springfield, ST 00000, domain example.com, super admin owner@example.com. Resend key <code>re_…</code>, notify sales@example.com.”</p></div>
+    <p>Which calls <code>standup_dealership_pro</code> with:</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Argument</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>target_path</code></td><td><code>/Users/me/sites/acme-motors</code> — must be <strong>outside</strong> the repo</td></tr>
+        <tr><td><code>brand_name</code></td><td><code>Acme Motors</code></td></tr>
+        <tr><td><code>contact_phone</code></td><td><code>5555550100</code></td></tr>
+        <tr><td><code>contact_email</code></td><td><code>sales@example.com</code></td></tr>
+        <tr><td>address fields</td><td><code>123 Main St</code> · <code>Springfield</code> · <code>ST</code> · <code>00000</code></td></tr>
+        <tr><td><code>domain</code></td><td><code>example.com</code></td></tr>
+        <tr><td><code>super_admin_email</code></td><td><code>owner@example.com</code></td></tr>
+        <tr><td><code>resend_api_key</code> · notify</td><td><code>re_…</code> · <code>sales@example.com</code> (optional)</td></tr>
+        <tr><td><code>region</code> · <code>organization_slug</code> · <code>team_id</code> · <code>locations_json</code></td><td>as needed</td></tr>
+      </tbody>
+    </table></div>
+    <p>Tokens come from the server env; if you didn't set them there, pass
+    <code>supabase_access_token</code> and <code>vercel_token</code>. On success you get each step's
+    result plus a summary:</p>
+    <div class="codewrap"><div class="bar">summary</div><pre><code>{
+  <span class="tok-key">"status"</span>: <span class="tok-str">"success"</span>,
+  <span class="tok-key">"summary"</span>: {
+    <span class="tok-key">"site_url"</span>: <span class="tok-str">"https://acme-motors.vercel.app"</span>,
+    <span class="tok-key">"supabase_ref"</span>: <span class="tok-str">"abcdefgh..."</span>,
+    <span class="tok-key">"db_password"</span>: <span class="tok-str">"…RECORD THIS…"</span>,
+    <span class="tok-key">"webhook_secret"</span>: <span class="tok-str">"…RECORD THIS…"</span>
+  }
+}</code></pre></div>
+    <p>With <code>run_verify</code> on (the default), a failing RLS suite stops the pipeline and returns
+    <code>verify_failed</code> with the output — nothing is declared done until the gate is green.</p>
+    <div class="call warn"><span class="lbl">Moment of truth</span><p>The <strong>schema apply</strong> inside provisioning is the first time <code>0001_initial_schema.sql</code> hits a brand-new cloud project. It's been validated against a real Postgres locally, but if anything is off the tool surfaces the Postgres error verbatim — read it, don't guess.</p></div>
+  </section>
+
+  <section id="steps">
+    <span class="snum">§ 05</span>
+    <h2>Step by step</h2>
+    <p>Run the tools individually to inspect between stages, retry one step, or split provisioning from
+    deployment. Order matters — each feeds the next.</p>
+
+    <h3><span class="k">scaffold_dealership_pro</span></h3>
+    <p>Copies the template to <code>target_path</code> (outside the repo; excludes
+    <code>node_modules</code>/<code>.next</code>/<code>.git</code>/env files) and generates
+    <code>src/config/site.ts</code> from the brief. No infrastructure touched. <code>force: true</code>
+    overwrites a non-empty target. → returns <code>target_path</code>, <code>site_config</code>,
+    <code>env_local</code>.</p>
+
+    <h3><span class="k">provision_supabase_dealership_pro</span></h3>
+    <p>The heavy step. Creates the project (or reuses <code>existing_ref</code>), waits until healthy,
+    then over the Management API: fetches the URL + browser key, applies the schema (skipped if already
+    applied), seeds the super admin, sets the three <strong>Vault</strong> secrets, and sets the
+    <strong>edge-function</strong> secrets. → returns <code>ref</code>, <code>project_url</code>,
+    <code>anon_key</code>, <strong><code>db_password</code></strong>, <code>supabase_db_url</code> (a
+    Session Pooler URI for <code>psql</code>), <strong><code>webhook_secret</code></strong>, and
+    <code>dashboard</code>.</p>
+    <div class="call"><span class="lbl">One secret, two homes</span><p>The <em>same</em> webhook secret is used for both the Vault secret the DB trigger sends and the function's <code>WEBHOOK_SECRET</code> — kept in sync automatically so notifications can't fail on a mismatch.</p></div>
+
+    <h3><span class="k">deploy_function_dealership_pro</span></h3>
+    <p>Deploys <code>send-credit-app-notification</code> via the Management API (Supabase bundles it
+    server-side). Needs <code>ref</code>. <code>verify_jwt</code> defaults to <strong>False</strong> on
+    purpose — see §10. The database “webhook” is the <code>AFTER INSERT</code> trigger the schema already
+    built, so nothing else needs wiring. → returns the function <code>endpoint</code>.</p>
+
+    <h3><span class="k">deploy_vercel_dealership_pro</span></h3>
+    <p>Creates (or reuses) the Vercel project, wires <code>NEXT_PUBLIC_SUPABASE_URL</code> +
+    <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, writes <code>.vercel/project.json</code>, and deploys
+    with the <code>vercel</code> CLI (cloud build). Needs <code>target_path</code> and the Supabase URL +
+    key. → returns the live <code>url</code>.</p>
+
+    <h3><span class="k">verify_dealership_pro</span></h3>
+    <p>Runs <code>rls_regression.sh</code> as the security gate. Seeds two throwaway
+    <code>@…invalid</code> admin identities, runs the suite, then removes <strong>only the rows it
+    inserted</strong>. Give it <code>ref</code> + <code>target_path</code>, and either
+    <code>supabase_db_url</code> or <code>db_password</code>. Needs <code>psql</code> + <code>bash</code>.
+    A clean run is <strong>27/27</strong>.</p>
+  </section>
+
+  <section id="manual-steps">
+    <span class="snum">§ 06</span>
+    <h2>After the tools — manual steps</h2>
+    <p>The automation gets you a working site at <code>*.vercel.app</code>. These last-mile items are
+    deliberately manual — they touch registrars, third-party verification, or human logins.</p>
+
+    <h3>Point the custom domain</h3>
+    <ol>
+      <li>Vercel → project → <strong>Settings → Domains</strong>: add <code>www.&lt;domain&gt;</code> and the apex.</li>
+      <li>At the registrar, add the records Vercel shows (usually a CNAME to <code>cname.vercel-dns.com</code>).</li>
+      <li>On Cloudflare, set the records to <strong>“DNS only” (grey cloud)</strong> — Vercel's Let's Encrypt SSL fails behind the orange-cloud proxy. Confirm routing with <code>dig @8.8.8.8 &lt;domain&gt;</code>, not just Vercel's checkmarks.</li>
+    </ol>
+
+    <h3>Verify the Resend sending domain</h3>
+    <p>Resend won't send from an unverified domain. Verify the client's domain and set
+    <code>notification_sender_email</code> to an address on it — or, to test, use Resend's sandbox sender
+    <code>onboarding@resend.dev</code> to your own inbox. Skipped Resend entirely? Leads still save and
+    appear in the admin inbox; set the key later to turn on email.</p>
+
+    <h3>First admin login &amp; inventory</h3>
+    <p>Send the client to <code>&lt;site&gt;/admin</code>. They enter the seeded super-admin email, get an
+    OTP by email, and they're in. Inventory is entered by hand in the Inventory tab — add vehicles, upload
+    photos. There is no DMS sync by design.</p>
+  </section>
+
+  <section id="gate">
+    <span class="snum">§ 07</span>
+    <h2>The security gate</h2>
+    <p><code>rls_regression.sh</code> asserts what each policy is <em>supposed</em> to allow, for every
+    identity that matters — anonymous visitor, self-registered stranger, ordinary admin, super admin —
+    plus the storage rules and the structural invariants (exactly three wide-open policies; RLS on every
+    table; no <code>TO public</code> all-command policy). It simulates identities in rolled-back
+    transactions and <strong>writes nothing</strong>, so it's safe against production. Run it after
+    <em>any</em> later change under <code>supabase/</code>. Green is 27 assertions passing.</p>
+  </section>
+
+  <section id="reruns">
+    <span class="snum">§ 08</span>
+    <h2>Re-runs, idempotency &amp; recovery</h2>
+    <ul>
+      <li><strong>Provisioning is idempotent.</strong> The schema applies at most once (gated by the <code>authorized_admins</code> marker). Re-running with <code>existing_ref</code> re-seeds the admin and re-sets secrets without touching the schema, and <strong>reuses</strong> the existing webhook secret instead of rotating it.</li>
+      <li><strong>A failure after the project is created preserves the <code>ref</code>.</strong> The error names it and tells you to re-run with <code>existing_ref=&lt;ref&gt;</code> — so you never orphan a paid project or make a duplicate.</li>
+      <li><strong>No <code>force_reapply</code>.</strong> The baseline is a one-shot “apply to an empty project” script, not idempotent DDL. To start clean, delete the project and create a fresh one.</li>
+      <li><strong><code>scaffold</code> won't overwrite</strong> a non-empty target without <code>force: true</code>, and it refuses any <code>target_path</code> inside the repo.</li>
+    </ul>
+  </section>
+
+  <section id="trouble">
+    <span class="snum">§ 09</span>
+    <h2>Troubleshooting</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>“Missing required value: Supabase access token”</td><td>no token in env or args</td><td>set it in the server env, or pass <code>access_token</code></td></tr>
+        <tr><td>“Multiple (or zero) organizations found”</td><td>account has &gt;1 Supabase org</td><td>pass <code>organization_slug</code></td></tr>
+        <tr><td>Create 4xx about plan/limits</td><td>free-tier project cap hit</td><td>remove an unused project, or pass <code>plan</code>/<code>instance_size</code></td></tr>
+        <tr><td>Schema apply returns a Postgres error</td><td>real SQL/privilege issue</td><td>read the verbatim error; the apply is atomic — fix, re-run with <code>existing_ref</code></td></tr>
+        <tr><td>Site reads “permission denied”</td><td>admin not seeded, or grants missing</td><td>provisioning seeds the admin + the schema grants <code>anon</code>/<code>authenticated</code>; if you applied SQL by hand, ensure both</td></tr>
+        <tr><td>Leads save but <strong>no emails</strong></td><td>Resend key/sender unset or domain unverified</td><td>set <code>resend_api_key</code> + a verified <code>notification_sender_email</code></td></tr>
+        <tr><td>Emails silent on a <strong>new</strong> project</td><td>function deployed with a JWT check against a non-JWT publishable key</td><td>keep <code>verify_jwt=False</code> — the <code>X-Webhook-Secret</code> check is the real gate</td></tr>
+        <tr><td><code>vercel</code> CLI “not found”</td><td>CLI not installed on the host</td><td><code>npm i -g vercel</code>, or deploy from a git push</td></tr>
+        <tr><td>Custom domain 404s; <code>*.vercel.app</code> works</td><td>Cloudflare orange-cloud / wrong branch-root / deploy protection</td><td>grey-cloud the DNS; check the domain's branch + root; disable SSO/password protection</td></tr>
+        <tr><td><code>EHOSTUNREACH … :5432</code> by hand</td><td>used the IPv6-only direct host</td><td>use the Session Pooler URI (<code>…pooler.supabase.com</code>) — what the tool returns as <code>supabase_db_url</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="risks">
+    <span class="snum">§ 10</span>
+    <h2>What's <em>not</em> automated — accepted risks</h2>
+    <ul>
+      <li><strong>RLS is the entire access-control layer.</strong> The browser uses only the anon / publishable key; there is no server API. Never put the <code>service_role</code> key in the app.</li>
+      <li><strong><code>verify_jwt=False</code> on the edge function is deliberate.</strong> The only caller is the DB trigger, which sends the project's browser key; on projects created since Nov 2025 that's a <em>publishable</em> key (not a JWT), so a gateway JWT check would 401 the trigger's fire-and-forget call and silently kill lead emails. The function authenticates itself with a fail-closed <code>X-Webhook-Secret</code> check.</li>
+      <li><strong>No rate limiting</strong> on the public lead/error inserts — honeypots only. Both forms are public by design.</li>
+      <li><strong><code>is_email_authorized</code> is anon-callable</strong> (an admin-email oracle) — required, since it runs before login; knowing an address is an admin grants nothing without that inbox.</li>
+    </ul>
+  </section>
+
+  <section id="teardown">
+    <span class="snum">§ 11</span>
+    <h2>Teardown</h2>
+    <p>To retire a stand-up, the operator deletes the pieces — these are destructive and are
+    <strong>your</strong> action, not the tool's:</p>
+    <ul>
+      <li><strong>Supabase</strong> — Dashboard → project → Settings → General → <em>Delete project</em>.</li>
+      <li><strong>Vercel</strong> — project → Settings → <em>Delete Project</em>.</li>
+      <li><strong>DNS</strong> — remove the records you added at the registrar.</li>
+      <li>The generated folder under <code>target_path</code> is just files — delete it.</li>
+    </ul>
+  </section>
+
+  <section id="cheatsheet">
+    <span class="snum">§ 12</span>
+    <h2>Tool cheat-sheet</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Tool</th><th>Does</th><th>Needs</th></tr></thead>
+      <tbody>
+        <tr><td><code>scaffold_dealership_pro</code></td><td>copy template + generate <code>site.ts</code></td><td>brief; <code>target_path</code> outside the repo</td></tr>
+        <tr><td><code>provision_supabase_dealership_pro</code></td><td>create project, apply schema, seed admin, set secrets</td><td><code>SUPABASE_ACCESS_TOKEN</code>; <code>super_admin_email</code></td></tr>
+        <tr><td><code>deploy_function_dealership_pro</code></td><td>deploy the lead-notification edge function</td><td><code>SUPABASE_ACCESS_TOKEN</code>; <code>ref</code></td></tr>
+        <tr><td><code>deploy_vercel_dealership_pro</code></td><td>create Vercel project + env, deploy</td><td><code>VERCEL_TOKEN</code>; <code>vercel</code> CLI; Supabase URL + key</td></tr>
+        <tr><td><code>verify_dealership_pro</code></td><td>run the RLS security gate</td><td><code>psql</code>+<code>bash</code>; <code>ref</code> + db creds</td></tr>
+        <tr><td><code>standup_dealership_pro</code></td><td>all of the above, one call</td><td>both tokens; the full brief</td></tr>
+      </tbody>
+    </table></div>
+    <div class="record">
+      <span class="rlbl">Record from the output</span>
+      <span class="pill">site URL</span>
+      <span class="pill">Supabase ref</span>
+      <span class="pill">db_password</span>
+      <span class="pill">webhook_secret</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span class="brand"><b>Corrupt</b> Solutions · Factory</span>
+  <span>Pro Dealership Tier — Next.js + Supabase · MCP-automated stand-up</span>
+</footer>
+</div>
+
+<script>
+(function(){
+  // Static field of pale flakes suspended in the dark — cover page only.
+  // Drawn once, no motion, no twinkle; re-rendered only on resize to refit.
+  var c = document.getElementById('stars');
+  if(!c) return;
+  var ctx = c.getContext('2d');
+  var DPR = Math.min(window.devicePixelRatio||1, 2);
+  function render(){
+    var W = c.clientWidth, H = c.clientHeight;
+    if(!W || !H) return;
+    c.width = W*DPR; c.height = H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.clearRect(0,0,W,H);
+    var n = Math.min(260, Math.floor(W*H/6000));
+    for(var i=0;i<n;i++){
+      var x = Math.random()*W, y = Math.random()*H;
+      var r = Math.random()*1.7 + 0.35;
+      var a = Math.random()*0.5 + 0.12;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      if(Math.random() < 0.08){
+        ctx.fillStyle = 'rgba(74,222,128,'+a+')'; ctx.shadowColor='rgba(74,222,128,0.6)'; ctx.shadowBlur=5;
+      } else {
+        ctx.fillStyle = 'rgba(228,238,233,'+a+')'; ctx.shadowBlur=0;
+      }
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+  var to;
+  window.addEventListener('resize', function(){ clearTimeout(to); to = setTimeout(render, 200); });
+  render();
+})();
+</script>
+
+</body>
+</html>

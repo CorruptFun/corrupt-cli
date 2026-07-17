@@ -25,83 +25,6 @@
 create extension if not exists pg_net with schema extensions;
 -- IDs use gen_random_uuid() (built in on Postgres 13+ / Supabase) — no uuid-ossp.
 
--- ---- Functions -------------------------------------------------------------
-
--- Is an email in the admin allow-list? Called by the login flow BEFORE sending an
--- OTP, so it must be callable by anon. It is a UX gate only — the real boundary is
--- the RLS policies below. SECURITY DEFINER so it can read authorized_admins.
-create or replace function public.is_email_authorized(test_email text)
-returns boolean
-language plpgsql security definer set search_path to 'public', 'pg_temp'
-as $$
-begin
-  return exists (
-    select 1 from public.authorized_admins where lower(email) = lower(test_email)
-  );
-end;
-$$;
-
--- Is the CURRENT caller a super admin?
--- SECURITY DEFINER is REQUIRED, not incidental: a policy ON authorized_admins that
--- queried authorized_admins directly would re-enter itself and Postgres would raise
--- "infinite recursion detected in policy". Running as the function owner (for whom
--- RLS on that table does not apply) breaks the cycle. Keep the pinned search_path.
-create or replace function public.is_super_admin()
-returns boolean
-language sql stable security definer set search_path to 'public', 'pg_temp'
-as $$
-  select exists (
-    select 1 from public.authorized_admins
-    where lower(email) = lower(auth.jwt() ->> 'email')
-      and is_super_admin
-  );
-$$;
-
--- Standard updated_at bump.
-create or replace function public.update_modified_column()
-returns trigger language plpgsql as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
--- Fires after a credit application is inserted and POSTs it to the notification
--- edge function. URL, anon key, and shared secret are read from Vault so NOTHING is
--- hardcoded — set them after deploying (see the bottom of this file). Never aborts
--- the customer's insert over a notification problem: it warns and moves on.
-create or replace function public.notify_credit_app_webhook()
-returns trigger language plpgsql security definer set search_path to 'public', 'pg_temp'
-as $$
-declare
-  v_url    text;
-  v_anon   text;
-  v_secret text;
-begin
-  select decrypted_secret into v_url    from vault.decrypted_secrets where name = 'project_url' limit 1;
-  select decrypted_secret into v_anon   from vault.decrypted_secrets where name = 'project_anon_key' limit 1;
-  select decrypted_secret into v_secret from vault.decrypted_secrets where name = 'send_credit_app_notification_secret' limit 1;
-
-  if v_url is null or v_anon is null or v_secret is null then
-    raise warning 'credit app notification skipped: vault secret(s) missing';
-    return new;
-  end if;
-
-  perform net.http_post(
-    url := v_url || '/functions/v1/send-credit-app-notification',
-    body := jsonb_build_object(
-      'type', TG_OP, 'table', TG_TABLE_NAME, 'schema', TG_TABLE_SCHEMA, 'record', row_to_json(new)
-    ),
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || v_anon,
-      'X-Webhook-Secret', v_secret
-    )
-  );
-  return new;
-end;
-$$;
-
 -- ---- Tables ----------------------------------------------------------------
 
 create table public.authorized_admins (
@@ -190,6 +113,87 @@ create table public.error_logs (
   extra         jsonb,
   created_at    timestamptz default now()
 );
+
+-- ---- Functions -------------------------------------------------------------
+-- NOTE: functions are defined AFTER the tables on purpose. is_super_admin()
+-- is LANGUAGE sql and selects from public.authorized_admins; with the default
+-- check_function_bodies=on, a fresh apply validates that reference at CREATE
+-- time, so the table must already exist. Keep tables above this block.
+
+-- Is an email in the admin allow-list? Called by the login flow BEFORE sending an
+-- OTP, so it must be callable by anon. It is a UX gate only — the real boundary is
+-- the RLS policies below. SECURITY DEFINER so it can read authorized_admins.
+create or replace function public.is_email_authorized(test_email text)
+returns boolean
+language plpgsql security definer set search_path to 'public', 'pg_temp'
+as $$
+begin
+  return exists (
+    select 1 from public.authorized_admins where lower(email) = lower(test_email)
+  );
+end;
+$$;
+
+-- Is the CURRENT caller a super admin?
+-- SECURITY DEFINER is REQUIRED, not incidental: a policy ON authorized_admins that
+-- queried authorized_admins directly would re-enter itself and Postgres would raise
+-- "infinite recursion detected in policy". Running as the function owner (for whom
+-- RLS on that table does not apply) breaks the cycle. Keep the pinned search_path.
+create or replace function public.is_super_admin()
+returns boolean
+language sql stable security definer set search_path to 'public', 'pg_temp'
+as $$
+  select exists (
+    select 1 from public.authorized_admins
+    where lower(email) = lower(auth.jwt() ->> 'email')
+      and is_super_admin
+  );
+$$;
+
+-- Standard updated_at bump.
+create or replace function public.update_modified_column()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+-- Fires after a credit application is inserted and POSTs it to the notification
+-- edge function. URL, anon key, and shared secret are read from Vault so NOTHING is
+-- hardcoded — set them after deploying (see the bottom of this file). Never aborts
+-- the customer's insert over a notification problem: it warns and moves on.
+create or replace function public.notify_credit_app_webhook()
+returns trigger language plpgsql security definer set search_path to 'public', 'pg_temp'
+as $$
+declare
+  v_url    text;
+  v_anon   text;
+  v_secret text;
+begin
+  select decrypted_secret into v_url    from vault.decrypted_secrets where name = 'project_url' limit 1;
+  select decrypted_secret into v_anon   from vault.decrypted_secrets where name = 'project_anon_key' limit 1;
+  select decrypted_secret into v_secret from vault.decrypted_secrets where name = 'send_credit_app_notification_secret' limit 1;
+
+  if v_url is null or v_anon is null or v_secret is null then
+    raise warning 'credit app notification skipped: vault secret(s) missing';
+    return new;
+  end if;
+
+  perform net.http_post(
+    url := v_url || '/functions/v1/send-credit-app-notification',
+    body := jsonb_build_object(
+      'type', TG_OP, 'table', TG_TABLE_NAME, 'schema', TG_TABLE_SCHEMA, 'record', row_to_json(new)
+    ),
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || v_anon,
+      'X-Webhook-Secret', v_secret
+    )
+  );
+  return new;
+end;
+$$;
 
 -- ---- Indexes ---------------------------------------------------------------
 create index credit_apps_status_idx      on public.credit_applications (status);
@@ -287,6 +291,37 @@ create policy "Whitelisted admins can update vehicle photos" on storage.objects
 create policy "Whitelisted admins can delete vehicle photos" on storage.objects
   for delete to authenticated
   using (bucket_id = 'vehicle-photos' and lower(auth.jwt() ->> 'email') in (select lower(email) from public.authorized_admins));
+
+-- ---- Data API grants -------------------------------------------------------
+-- Supabase's Data API reaches Postgres as the `anon` / `authenticated` roles, so
+-- those roles need table/function privileges before any RLS policy is even
+-- consulted. NEW Supabase projects do NOT auto-expose objects to these roles
+-- (see the auto_expose_new_tables note in supabase/config.toml) — without these
+-- grants a freshly-applied project returns "permission denied" and the anon key
+-- can do nothing. RLS (enabled above) remains the row-level gate: these grants
+-- only decide which COMMANDS a role may attempt; the policies decide the ROWS.
+-- Granting a command with no matching policy (e.g. anon has no vehicles INSERT)
+-- is denied twice over, which is fine.
+grant usage on schema public to anon, authenticated;
+
+-- anon: browse inventory, submit a lead, report a client error. Nothing else.
+grant select                         on public.vehicles            to anon;
+grant insert                         on public.credit_applications to anon;
+grant insert                         on public.error_logs          to anon;
+
+-- authenticated: everything the admin portal does — all gated by RLS down to
+-- whitelisted / super admins. Deliberately no UPDATE on authorized_admins
+-- (promotion is a SQL op, not a portal action) and no UPDATE on error_logs.
+grant select, insert, update, delete on public.vehicles            to authenticated;
+grant select, insert, update, delete on public.credit_applications to authenticated;
+grant select, insert,         delete on public.error_logs          to authenticated;
+grant select, insert,         delete on public.authorized_admins   to authenticated;
+
+-- The login screen calls is_email_authorized() as anon (before any OTP is sent),
+-- and the authorized_admins policies call is_super_admin() as the authenticated
+-- caller — both need EXECUTE explicitly on a non-auto-exposing project.
+grant execute on function public.is_email_authorized(text) to anon, authenticated;
+grant execute on function public.is_super_admin()          to authenticated;
 
 -- ============================================================================
 -- AFTER APPLYING — required, or the admin portal + notifications won't work:

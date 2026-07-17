@@ -112,19 +112,31 @@ check "anon CAN browse inventory"            "ALLOWED" "$(try anon - 'SELECT cou
 check "anon CANNOT write inventory"          "DENIED"  "$(try anon - "$NEW_VEHICLE")"
 check "anon CAN submit a credit application" "ALLOWED" "$(try anon - "INSERT INTO public.credit_applications (full_name,phone,financing_type) VALUES ('RLSTEST','5555550000','vehicle_inquiry');")"
 
-check "anon CANNOT read credit applications" "0" "$(count_as anon - 'SELECT count(*) FROM public.credit_applications;')"
+# anon reads zero credit applications. Insert a row FIRST (public INSERT is
+# allowed) inside the same rolled-back txn, so 0 means "anon cannot see even a row
+# that exists," not "the table happened to be empty" — otherwise this assertion
+# would pass against a wide-open table and miss a re-introduced anon-read hole.
+# Empty output = permission denied (anon has no SELECT grant) = the strongest pass.
+anon_ca=$(count_as anon - "INSERT INTO public.credit_applications (full_name,phone,financing_type) VALUES ('RLSTEST','5555550000','vehicle_inquiry'); SELECT count(*) FROM public.credit_applications;")
+check "anon CANNOT read credit applications" "0" "${anon_ca:-0}"
 
 echo
 echo "-- authenticated stranger (self-registered, not whitelisted) --"
 check "stranger CANNOT write inventory" "DENIED" "$(try authenticated "$STRANGER_EMAIL" "$NEW_VEHICLE")"
-check "stranger CANNOT read credit applications" "0" "$(count_as authenticated "$STRANGER_EMAIL" 'SELECT count(*) FROM public.credit_applications;')"
+# Same non-vacuous pattern: seed a row in the rolled-back txn (a stranger may
+# INSERT — public policy), then confirm RLS hides it from a non-admin read. 0 must
+# mean "RLS filtered a real row," not "empty table".
+stranger_ca=$(count_as authenticated "$STRANGER_EMAIL" "INSERT INTO public.credit_applications (full_name,phone,financing_type) VALUES ('RLSTEST','5555550000','vehicle_inquiry'); SELECT count(*) FROM public.credit_applications;")
+check "stranger CANNOT read credit applications" "0" "${stranger_ca:-0}"
 
 echo
 echo "-- whitelisted admin (the portal must keep working) --"
 check "admin CAN add a vehicle"    "ALLOWED" "$(try authenticated "$ADMIN_EMAIL" "$NEW_VEHICLE")"
 check "admin CAN update inventory" "ALLOWED" "$(try authenticated "$ADMIN_EMAIL" "UPDATE public.vehicles SET status='sold' WHERE id=(SELECT id FROM public.vehicles LIMIT 1);")"
 check "admin CAN delete inventory" "ALLOWED" "$(try authenticated "$ADMIN_EMAIL" "DELETE FROM public.vehicles WHERE id=(SELECT id FROM public.vehicles LIMIT 1);")"
-acount=$(count_as authenticated "$ADMIN_EMAIL" 'SELECT count(*) FROM public.credit_applications;')
+# Insert-then-read inside the admin's own (rolled-back) transaction so this
+# holds on a freshly-applied schema too, not just a DB that already has leads.
+acount=$(count_as authenticated "$ADMIN_EMAIL" "INSERT INTO public.credit_applications (full_name,phone,financing_type) VALUES ('RLSTEST','5555550000','vehicle_inquiry'); SELECT count(*) FROM public.credit_applications;")
 check "admin CAN read credit applications" "yes" "$([ "${acount:-0}" -ge 1 ] && echo yes || echo no)"
 
 echo
@@ -138,8 +150,12 @@ check "stranger CANNOT add an admin"        "DENIED"  "$(try authenticated "$STR
 # by this table's SELECT policy. If self-read breaks, admin access breaks with it.
 check "ordinary admin CAN see own row" "1" "$(count_as authenticated "$ADMIN_EMAIL" "SELECT count(*) FROM public.authorized_admins WHERE lower(email)=lower('$ADMIN_EMAIL');")"
 check "ordinary admin CANNOT see whole list" "1" "$(count_as authenticated "$ADMIN_EMAIL" 'SELECT count(*) FROM public.authorized_admins;')"
+# The super admin must see EVERY row. Compare against the true total read as the
+# connecting owner role (which bypasses RLS), so this is correct for any admin
+# count — a fresh project with 2 seeded admins or a live one with dozens.
+total_admins=$(psql "$DBURL" -tAc "SELECT count(*) FROM public.authorized_admins;")
 sa=$(count_as authenticated "$SUPER_EMAIL" 'SELECT count(*) FROM public.authorized_admins;')
-check "super admin CAN see whole list" "yes" "$([ "${sa:-0}" -ge 6 ] && echo yes || echo no)"
+check "super admin sees the full admin list" "$total_admins" "$sa"
 
 echo
 echo "-- storage: vehicle-photos bucket --"

@@ -8,6 +8,12 @@ Supabase (Postgres + RLS, Auth, Storage, Edge Functions); deploys to Vercel.
 
 ## Rebranding this template
 
+> **Automated path:** the Corrupt MCP server stands this whole tier up end-to-end
+> from API tokens — scaffold + config generation, Supabase project + schema +
+> secrets, edge function, Vercel deploy, and the RLS security gate. See
+> `corrupt-mcp/README.md` (`standup_dealership_pro`). The steps below are the
+> equivalent manual runbook.
+
 This is a template, not a finished site for a specific dealership. To turn it
 into one:
 
@@ -21,9 +27,10 @@ into one:
    notification recipients) — see `supabase/README.md` and the comments at
    the top of `.env.example`. These are configured on the Supabase project,
    not in `.env.local`.
-4. **Set your own super admin** before applying
-   `supabase/migrations/20260716_super_admin_data_driven.sql` — it ships
-   with a placeholder email and a comment explaining exactly what to change.
+4. **Seed your first super admin** after applying
+   `supabase/migrations/0001_initial_schema.sql` — the two required post-apply
+   steps (insert the super admin, set the Vault secrets) are documented at the
+   bottom of that file. (The MCP stand-up does this for you.)
 5. **Replace `public/dealership.jpg`**, `public/favicon.svg`, and the
    placeholder copy in `public/manifest.json` / `sitemap.xml` / `robots.txt`
    / `privacy.html` (these are static files and can't read `site.ts`, so
@@ -108,8 +115,8 @@ cycle. If you touch that function, keep `SECURITY DEFINER` and the pinned
 `search_path`.
 
 Promoting someone to super admin is deliberately **not** a portal action — there is
-no `UPDATE` policy on `authorized_admins`. Do it in SQL (see the template note in
-`supabase/migrations/20260716_super_admin_data_driven.sql`).
+no `UPDATE` policy on `authorized_admins`. Do it in SQL (the `authorized_admins`
+table and its policies are defined in `supabase/migrations/0001_initial_schema.sql`).
 
 **Self-signup is intentionally left enabled.** `signInWithOtp` is called without
 `shouldCreateUser: false`, so anyone can register an auth user. This is deliberate:
@@ -165,8 +172,8 @@ and `RLS_TEST_SUPER_EMAIL` if you don't want to use its placeholder defaults.
 `vehicle-photos` bucket.** The path *is* the record of ownership — this is
 enforced, not just a convention:
 
-- **Enforced, not just intended.** The storage INSERT policy rejects any upload
-  that is not `<uuid>/<file>` (`20260716_enforce_vehicle_photo_paths.sql`), so the
+- **Enforced, not just intended.** The storage INSERT policy (in
+  `0001_initial_schema.sql`) rejects any upload that is not `<uuid>/<file>`, so the
   bucket cannot drift into flat, unattributed files.
 - **The id is minted client-side.** `VehicleForm.tsx` generates the vehicle's UUID
   with `crypto.randomUUID()` *before* uploading, because photos upload before the
@@ -198,7 +205,7 @@ vehicle references. Idempotent; safe to re-run.
 
 Public form (`FinancingSection.tsx`, `VehicleDetailsModal.tsx`)
 -> insert into `credit_applications`
--> `AFTER INSERT` trigger (`supabase/webhook_trigger.sql`)
+-> `AFTER INSERT` trigger `tr_notify_credit_app_webhook` (in `0001_initial_schema.sql`)
 -> edge function `send-credit-app-notification` (validates a shared secret
    fail-closed, HTML-escapes all fields)
 -> Resend: dealer inboxes + customer confirmation

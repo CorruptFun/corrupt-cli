@@ -5,6 +5,8 @@ import re
 import json
 import datetime
 
+import dealership_pro as pro
+
 # Create the MCP Server
 mcp = FastMCP("CorruptCLI Engine")
 
@@ -256,6 +258,354 @@ def scaffold_saas_platform(
             "supabase functions deploy --all"
         ]
     })
+
+# ===========================================================================
+# Pro dealership tier (corrupt-dealership-pro) — full end-to-end automation.
+#
+# Unlike the two scaffolders above, the Pro tier is a real Next.js + Supabase
+# app, so it is configured by generating a config FILE (not {{TOKEN}} swaps) and
+# stood up against live infrastructure via API tokens. Each tool below is one
+# idempotent step; `standup_dealership_pro` runs them all in order.
+#
+# Tokens are read from arguments or the environment (SUPABASE_ACCESS_TOKEN,
+# VERCEL_TOKEN) and are NEVER written into committed files. Generated secrets
+# (DB password, webhook secret) are returned so the operator can record them.
+# ===========================================================================
+
+
+def _parse_locations(locations_json: str):
+    if not locations_json:
+        return None
+    try:
+        locs = json.loads(locations_json)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"locations_json is not valid JSON: {e}")
+    if not isinstance(locs, list):
+        raise ValueError('locations_json must be a JSON array of {"id","label"} objects.')
+    return locs
+
+
+def _config_inputs(**kw):
+    """Assemble the generate_site_config kwargs from flat tool arguments."""
+    return dict(
+        brand_name=kw["brand_name"],
+        contact_phone=kw["contact_phone"],
+        contact_email=kw["contact_email"],
+        address_street=kw["address_street"],
+        address_city=kw["address_city"],
+        address_state=kw["address_state"],
+        address_zip=kw["address_zip"],
+        domain=kw["domain"],
+        legal_suffix=kw.get("legal_suffix", "LLC"),
+        legal_name=kw.get("legal_name", ""),
+        tagline=kw.get("tagline", "Premium Showroom & Flexible Financing"),
+        founded_year=kw.get("founded_year", 0),
+        site_url=kw.get("site_url", ""),
+        phone_display=kw.get("phone_display", ""),
+        facebook_url=kw.get("facebook_url", ""),
+        locations=_parse_locations(kw.get("locations_json", "")),
+    )
+
+
+@mcp.tool()
+def scaffold_dealership_pro(
+    target_path: str,
+    brand_name: str,
+    contact_phone: str,
+    contact_email: str,
+    address_street: str,
+    address_city: str,
+    address_state: str,
+    address_zip: str,
+    domain: str,
+    legal_suffix: str = "LLC",
+    legal_name: str = "",
+    tagline: str = "Premium Showroom & Flexible Financing",
+    founded_year: int = 0,
+    site_url: str = "",
+    phone_display: str = "",
+    facebook_url: str = "",
+    locations_json: str = "",
+    supabase_url: str = "",
+    supabase_anon_key: str = "",
+    supabase_db_url: str = "",
+    force: bool = False,
+) -> str:
+    """
+    Copy the Pro dealership template to target_path (outside the repo) and
+    generate src/config/site.ts from these inputs. No infrastructure is touched.
+
+    Args:
+        target_path: Absolute path OUTSIDE this repo for the generated site.
+        brand_name: Display brand (e.g. "Acme Motors").
+        contact_phone: Phone; digits are extracted for tel: links.
+        domain: Bare domain, no protocol (e.g. "example.com").
+        locations_json: JSON array of lots, e.g.
+            '[{"id":"main","label":"Main Lot"},{"id":"north","label":"North Valley"}]'.
+            Location ids must be lowercase/hyphen/underscore. Defaults to a
+            single "main" lot.
+        supabase_url / supabase_anon_key / supabase_db_url: If provided, written
+            to .env.local. Usually you provision Supabase first and let that step
+            write these instead.
+        force: If True, replaces an existing non-empty target_path.
+    """
+    try:
+        inputs = _config_inputs(
+            brand_name=brand_name, contact_phone=contact_phone, contact_email=contact_email,
+            address_street=address_street, address_city=address_city, address_state=address_state,
+            address_zip=address_zip, domain=domain, legal_suffix=legal_suffix, legal_name=legal_name,
+            tagline=tagline, founded_year=founded_year, site_url=site_url,
+            phone_display=phone_display, facebook_url=facebook_url, locations_json=locations_json,
+        )
+        result = pro.scaffold_pro(
+            target_path, inputs, supabase_url=supabase_url,
+            supabase_anon_key=supabase_anon_key, supabase_db_url=supabase_db_url, force=force,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+@mcp.tool()
+def provision_supabase_dealership_pro(
+    project_name: str,
+    super_admin_email: str,
+    access_token: str = "",
+    existing_ref: str = "",
+    db_password: str = "",
+    region: str = "us-east-1",
+    organization_slug: str = "",
+    organization_id: str = "",
+    plan: str = "",
+    instance_size: str = "",
+    resend_api_key: str = "",
+    webhook_secret: str = "",
+    notification_to_emails: str = "",
+    notification_sender_email: str = "",
+    notification_brand_name: str = "",
+    target_path: str = "",
+) -> str:
+    """
+    Create a Supabase project (or use existing_ref), apply the baseline schema,
+    seed the first super admin, and set the Vault + edge-function secrets.
+
+    Needs a Supabase personal access token (starts with `sbp_`) via access_token
+    or $SUPABASE_ACCESS_TOKEN. Applying the schema against a fresh project is the
+    real first test of the baseline — any Postgres error is surfaced verbatim.
+
+    Idempotent: the schema is applied at most once (gated by a marker table), and
+    re-running with existing_ref re-seeds the admin + secrets without touching it.
+    If a step fails AFTER the project was created, the error names the ref and how
+    to resume — re-run with existing_ref=<that ref> so no duplicate is created.
+
+    Args:
+        project_name: Name for the new Supabase project.
+        super_admin_email: Seeded into authorized_admins with is_super_admin=true.
+            Until this exists, no one can log into the admin portal.
+        existing_ref: Reuse an existing project ref instead of creating one.
+        db_password: DB password; generated (and returned) if omitted.
+        region: Supabase region (default us-east-1).
+        resend_api_key: Resend key for lead-notification email. If omitted, the
+            site works but lead emails are skipped until you set it.
+        webhook_secret: Shared secret used for BOTH the Vault secret the trigger
+            sends and the edge function's WEBHOOK_SECRET. Generated if omitted;
+            on an existing_ref re-run the current value is reused, not rotated.
+        target_path: If given, .env.local in that scaffold is updated with the
+            project URL, anon key, and pooler DB URL.
+
+    Returns JSON including ref, project_url, anon_key, db_password,
+    supabase_db_url, and webhook_secret — RECORD db_password and webhook_secret;
+    Supabase cannot show them again.
+    """
+    lines = []
+    try:
+        result = pro.provision_supabase(
+            access_token=access_token, project_name=project_name,
+            super_admin_email=super_admin_email, existing_ref=existing_ref,
+            db_password=db_password, region=region, organization_slug=organization_slug,
+            organization_id=organization_id, plan=plan, instance_size=instance_size,
+            resend_api_key=resend_api_key, webhook_secret=webhook_secret,
+            notification_to_emails=notification_to_emails,
+            notification_sender_email=notification_sender_email,
+            notification_brand_name=notification_brand_name, target_path=target_path,
+            log=lines.append,
+        )
+        result["log"] = lines
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e), "log": lines})
+
+
+@mcp.tool()
+def deploy_function_dealership_pro(
+    ref: str,
+    access_token: str = "",
+    function_dir: str = "",
+    slug: str = "send-credit-app-notification",
+    verify_jwt: bool = False,
+) -> str:
+    """
+    Deploy the lead-notification edge function to a Supabase project via the
+    Management API (Supabase bundles server-side — no local Deno/CLI needed).
+
+    The database webhook itself is the AFTER INSERT trigger built by the baseline
+    schema, so nothing else needs wiring — just make the function live and ensure
+    its secrets are set (done by provision_supabase_dealership_pro).
+
+    Args:
+        ref: Supabase project ref.
+        function_dir: Source dir; defaults to the template's
+            supabase/functions/send-credit-app-notification.
+        verify_jwt: Whether the gateway JWT-verifies callers. Default False on
+            purpose: the only caller is the DB trigger, which sends the project's
+            browser key — and on projects created since Nov 2025 that key is a
+            *publishable* key, not a JWT, so verify_jwt=True would 401 the
+            trigger's fire-and-forget call and silently kill lead emails. The
+            function's own fail-closed X-Webhook-Secret check is the real gate.
+    """
+    try:
+        result = pro.deploy_function(
+            access_token=access_token, ref=ref,
+            function_dir=function_dir or pro.DEFAULT_FUNCTION_DIR,
+            slug=slug, verify_jwt=verify_jwt,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+@mcp.tool()
+def deploy_vercel_dealership_pro(
+    target_path: str,
+    supabase_url: str,
+    supabase_anon_key: str,
+    vercel_token: str = "",
+    project_name: str = "",
+    team_id: str = "",
+    prod: bool = True,
+) -> str:
+    """
+    Create (or reuse) a Vercel project, wire the two NEXT_PUBLIC_SUPABASE_* env
+    vars, and deploy the scaffolded site. Needs the `vercel` CLI on PATH and a
+    token via vercel_token or $VERCEL_TOKEN.
+
+    Args:
+        target_path: The scaffolded site directory to deploy.
+        supabase_url / supabase_anon_key: Wired as Vercel env vars (all envs).
+        project_name: Vercel project name; defaults to the target dir basename.
+        team_id: Vercel team/scope id (omit for a personal account).
+    """
+    try:
+        result = pro.deploy_vercel(
+            vercel_token=vercel_token, target_path=target_path, project_name=project_name,
+            team_id=team_id, supabase_url=supabase_url, supabase_anon_key=supabase_anon_key,
+            prod=prod,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+@mcp.tool()
+def verify_dealership_pro(
+    ref: str,
+    target_path: str,
+    access_token: str = "",
+    db_password: str = "",
+    supabase_db_url: str = "",
+    admin_email: str = "rls-regression-admin@corrupt.invalid",
+    super_email: str = "rls-regression-super@corrupt.invalid",
+) -> str:
+    """
+    Run supabase/tests/rls_regression.sh against the project as the final
+    security gate. Seeds two throwaway admin identities, runs the suite, then
+    removes them (the client's admin list is left untouched). Needs psql + bash.
+
+    Provide either supabase_db_url (a Session Pooler URI) or db_password (the
+    pooler URI is then fetched + built for you).
+    """
+    try:
+        result = pro.verify(
+            access_token=access_token, ref=ref, db_password=db_password,
+            supabase_db_url=supabase_db_url, target_path=target_path,
+            admin_email=admin_email, super_email=super_email,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e)})
+
+
+@mcp.tool()
+def standup_dealership_pro(
+    target_path: str,
+    brand_name: str,
+    contact_phone: str,
+    contact_email: str,
+    address_street: str,
+    address_city: str,
+    address_state: str,
+    address_zip: str,
+    domain: str,
+    super_admin_email: str,
+    supabase_access_token: str = "",
+    vercel_token: str = "",
+    project_name: str = "",
+    region: str = "us-east-1",
+    organization_slug: str = "",
+    organization_id: str = "",
+    plan: str = "",
+    instance_size: str = "",
+    resend_api_key: str = "",
+    notification_to_emails: str = "",
+    notification_sender_email: str = "",
+    notification_brand_name: str = "",
+    team_id: str = "",
+    legal_suffix: str = "LLC",
+    legal_name: str = "",
+    tagline: str = "Premium Showroom & Flexible Financing",
+    founded_year: int = 0,
+    facebook_url: str = "",
+    locations_json: str = "",
+    force: bool = False,
+    run_verify: bool = True,
+) -> str:
+    """
+    Full end-to-end Pro-tier stand-up from one call:
+      scaffold -> provision Supabase -> deploy edge function -> deploy Vercel -> verify.
+
+    Needs a Supabase PAT ($SUPABASE_ACCESS_TOKEN or supabase_access_token) and a
+    Vercel token ($VERCEL_TOKEN or vercel_token). Returns each step's result plus
+    a summary with the live site URL, the Supabase ref, and the generated
+    db_password + webhook_secret (RECORD THESE — they can't be shown again).
+
+    If run_verify is True and the RLS regression suite fails, the pipeline stops
+    and returns status "verify_failed" with the suite output.
+    """
+    lines = []
+    try:
+        inputs = _config_inputs(
+            brand_name=brand_name, contact_phone=contact_phone, contact_email=contact_email,
+            address_street=address_street, address_city=address_city, address_state=address_state,
+            address_zip=address_zip, domain=domain, legal_suffix=legal_suffix, legal_name=legal_name,
+            tagline=tagline, founded_year=founded_year, facebook_url=facebook_url,
+            locations_json=locations_json,
+        )
+        result = pro.standup(
+            config_inputs=inputs, target_path=target_path,
+            supabase_access_token=supabase_access_token, vercel_token=vercel_token,
+            project_name=project_name, super_admin_email=super_admin_email, region=region,
+            organization_slug=organization_slug, organization_id=organization_id, plan=plan,
+            instance_size=instance_size, resend_api_key=resend_api_key,
+            notification_to_emails=notification_to_emails,
+            notification_sender_email=notification_sender_email,
+            notification_brand_name=notification_brand_name, team_id=team_id,
+            force=force, run_verify=run_verify, log=lines.append,
+        )
+        result["log"] = lines
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"status": "error", "message": str(e), "log": lines})
+
 
 if __name__ == "__main__":
     mcp.run()
